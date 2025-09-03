@@ -8,7 +8,13 @@ const https = require("https");
 const http = require("http");
 require("dotenv").config();
 
+// Estendi il prototipo BigInt per supportare la serializzazione JSON
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 // Importa le route
+const AuthenticationRoutes = require("./routes/authentication/Authentication");
 
 const credentials = {
   key: fs.readFileSync("SSL/privateKey.key"),
@@ -20,7 +26,7 @@ app.use(express.static("public"));
 const PREFIX = "/API/v1";
 const PORT = 3000; // Porta standard per HTTPS
 
-const db = require("./configs/Database");
+// Database non più necessario con Prisma
 
 // Configura CORS
 app.use(
@@ -65,6 +71,7 @@ if (process.env.ENVIRONMENT === "development") {
 }
 
 // Definisci le route principali
+app.use(PREFIX + "/authentication", AuthenticationRoutes());
 
 // Avvia il server HTTPS sulla porta 443
 (async () => {
