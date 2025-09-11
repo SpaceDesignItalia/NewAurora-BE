@@ -3,10 +3,23 @@ const { PrismaClient } = require("../generated/prisma");
 const prisma = new PrismaClient();
 
 class ProjectModel {
-  static async create_project(project_data) {
+  static async create_project(project_data, user_id) {
     try {
-      const project = await prisma.project.create({
-        data: project_data,
+      const project_data_to_create = {
+        name: project_data.name,
+        description: project_data.description,
+        start_date: project_data.startDate,
+        end_date: project_data.endDate,
+        project_status_id: project_data.projectStatus,
+        created_by_id: user_id,
+      };
+
+      const project = await prisma.$transaction(async (tx) => {
+        // Crea il progetto
+        const newProject = await tx.project.create({
+          data: project_data_to_create,
+        });
+        return newProject;
       });
 
       return project;

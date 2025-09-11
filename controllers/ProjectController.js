@@ -5,7 +5,8 @@ class ProjectController {
   static async create_project(req, res) {
     try {
       const create_project_data = req.body.project_data;
-      let project = await Project.create_project(create_project_data);
+      const user_id = req.session.account.user_id;
+      let project = await Project.create_project(create_project_data, user_id);
 
       res.status(200).json({
         message: "Progetto creato con successo",

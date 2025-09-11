@@ -32,9 +32,9 @@ model Project {
   project_id BigInt @id @default(autoincrement())
   unique_id String @default(uuid()) @unique
   name String
-  description String
-  start_date DateTime
-  end_date DateTime
+  description String?
+  start_date DateTime?
+  end_date DateTime?
   project_status_id BigInt
   project_status Project_Status @relation(fields: [project_status_id], references: [project_status_id])
   created_by_id BigInt
