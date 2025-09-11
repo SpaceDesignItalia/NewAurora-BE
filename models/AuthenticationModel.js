@@ -27,7 +27,6 @@ class AuthenticationModel {
           surname: register_data.surname,
           email: register_data.email,
           password: hash,
-          company_id: 1, // Default company_id
         },
       });
 

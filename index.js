@@ -15,6 +15,7 @@ BigInt.prototype.toJSON = function () {
 
 // Importa le route
 const AuthenticationRoutes = require("./routes/authentication/Authentication");
+const ProjectRoutes = require("./routes/project/Project");
 
 const credentials = {
   key: fs.readFileSync("SSL/privateKey.key"),
@@ -72,6 +73,7 @@ if (process.env.ENVIRONMENT === "development") {
 
 // Definisci le route principali
 app.use(PREFIX + "/authentication", AuthenticationRoutes());
+app.use(PREFIX + "/project", ProjectRoutes());
 
 // Avvia il server HTTPS sulla porta 443
 (async () => {
