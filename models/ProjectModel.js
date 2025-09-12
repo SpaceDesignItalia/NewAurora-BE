@@ -73,6 +73,16 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async delete_project(project_id) {
+    try {
+      await prisma.project.delete({
+        where: { project_id: project_id },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;

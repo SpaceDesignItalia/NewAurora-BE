@@ -6,7 +6,7 @@ class ProjectController {
     try {
       const create_project_data = req.body.project_data;
       const user_id = req.session.account.user_id;
-      let project = await Project.create_project(create_project_data, user_id);
+      await Project.create_project(create_project_data, user_id);
 
       res.status(200).json({
         message: "Progetto creato con successo",
@@ -57,6 +57,20 @@ class ProjectController {
     } catch (error) {
       console.error("Errore nella ricerca degli status progetti:", error);
       res.status(500).send("Ricerca degli status progetti fallita");
+    }
+  }
+
+  static async delete_project(req, res) {
+    try {
+      const project_id = req.body.project_id;
+      await Project.delete_project(project_id);
+
+      res.status(200).json({
+        message: "Progetto eliminato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione del progetto:", error);
+      res.status(500).send("Eliminazione del progetto fallita");
     }
   }
 }
