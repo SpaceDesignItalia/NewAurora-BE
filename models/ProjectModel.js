@@ -8,10 +8,12 @@ class ProjectModel {
       const project_data_to_create = {
         name: project_data.name,
         description: project_data.description,
-        start_date: project_data.startDate,
-        end_date: project_data.endDate,
-        project_status_id: project_data.projectStatus,
-        created_by_id: user_id,
+        start_date: project_data.startDate
+          ? new Date(project_data.startDate)
+          : null,
+        end_date: project_data.endDate ? new Date(project_data.endDate) : null,
+        project_status_id: parseInt(project_data.projectStatus),
+        created_by_id: parseInt(user_id),
       };
 
       const project = await prisma.$transaction(async (tx) => {
