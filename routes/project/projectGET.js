@@ -15,6 +15,10 @@ const projectGET = () => {
     ProjectController.get_project_by_id(req, res);
   });
 
+  router.get("/get-project-statuses", authenticateMiddleware, (req, res) => {
+    ProjectController.get_project_statuses(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

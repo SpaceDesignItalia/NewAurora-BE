@@ -62,6 +62,15 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async get_project_statuses() {
+    try {
+      const project_statuses = await prisma.project_Status.findMany();
+      return project_statuses;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;

@@ -45,6 +45,20 @@ class ProjectController {
       res.status(500).send("Ricerca del progetto fallita");
     }
   }
+
+  static async get_project_statuses(req, res) {
+    try {
+      let project_statuses = await Project.get_project_statuses();
+
+      res.status(200).json({
+        message: "Status progetti trovati con successo",
+        project_statuses: project_statuses,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca degli status progetti:", error);
+      res.status(500).send("Ricerca degli status progetti fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;
