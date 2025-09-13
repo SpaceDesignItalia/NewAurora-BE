@@ -19,11 +19,28 @@ class ProjectController {
 
   static async get_projects(req, res) {
     try {
-      let projects = await Project.get_projects();
+      // Extract filter parameters from query string
+      const filters = {
+        status: req.query.status || null,
+        startDate: req.query.startDate || null,
+        endDate: req.query.endDate || null,
+        teamMember: req.query.teamMember || null,
+        search: req.query.search || null,
+      };
+
+      // Remove null/empty values
+      Object.keys(filters).forEach((key) => {
+        if (filters[key] === null || filters[key] === "") {
+          delete filters[key];
+        }
+      });
+
+      let projects = await Project.get_projects(filters);
 
       res.status(200).json({
         message: "Progetti trovati con successo",
         projects: projects,
+        filters: filters,
       });
     } catch (error) {
       console.error("Errore nella ricerca dei progetti:", error);

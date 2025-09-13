@@ -30,13 +30,70 @@ class ProjectModel {
     }
   }
 
-  static async get_projects() {
+  static async get_projects(filters = {}) {
     try {
+      // Build the where clause based on filters
+      const whereClause = {};
+
+      // Filter by project status
+      if (filters.status) {
+        whereClause.project_status_id = parseInt(filters.status);
+      }
+
+      // Filter by start date (projects starting from this date or later)
+      if (filters.startDate) {
+        whereClause.start_date = {
+          gte: new Date(filters.startDate),
+        };
+      }
+
+      // Filter by end date (projects ending before or on this date)
+      if (filters.endDate) {
+        whereClause.end_date = {
+          lte: new Date(filters.endDate),
+        };
+      }
+
+      // Filter by team member
+      if (filters.teamMember) {
+        whereClause.project_members = {
+          some: {
+            user_id: parseInt(filters.teamMember),
+          },
+        };
+      }
+
+      // Filter by search term (name or description)
+      if (filters.search) {
+        whereClause.OR = [
+          {
+            name: {
+              contains: filters.search,
+              mode: "insensitive",
+            },
+          },
+          {
+            description: {
+              contains: filters.search,
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+
       const projects = await prisma.project.findMany({
+        where: whereClause,
         include: {
           project_status: true,
           created_by: true,
-          project_members: true,
+          project_members: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: "desc",
         },
       });
 
