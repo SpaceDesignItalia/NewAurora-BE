@@ -30,51 +30,23 @@ class ProjectModel {
     }
   }
 
-  static async get_projects(filters = {}) {
+  static async get_projects(search = null) {
     try {
-      // Build the where clause based on filters
+      // Build the where clause based on search term only
       const whereClause = {};
 
-      // Filter by project status
-      if (filters.status) {
-        whereClause.project_status_id = parseInt(filters.status);
-      }
-
-      // Filter by start date (projects starting from this date or later)
-      if (filters.startDate) {
-        whereClause.start_date = {
-          gte: new Date(filters.startDate),
-        };
-      }
-
-      // Filter by end date (projects ending before or on this date)
-      if (filters.endDate) {
-        whereClause.end_date = {
-          lte: new Date(filters.endDate),
-        };
-      }
-
-      // Filter by team member
-      if (filters.teamMember) {
-        whereClause.project_members = {
-          some: {
-            user_id: parseInt(filters.teamMember),
-          },
-        };
-      }
-
-      // Filter by search term (name or description)
-      if (filters.search) {
+      // Search by name or description
+      if (search) {
         whereClause.OR = [
           {
             name: {
-              contains: filters.search,
+              contains: search,
               mode: "insensitive",
             },
           },
           {
             description: {
-              contains: filters.search,
+              contains: search,
               mode: "insensitive",
             },
           },
