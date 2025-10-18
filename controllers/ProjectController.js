@@ -76,6 +76,45 @@ class ProjectController {
       res.status(500).send("Eliminazione del progetto fallita");
     }
   }
+
+  static async get_project_by_unique_id(req, res) {
+    try {
+      const unique_id = req.query.unique_id;
+      let project = await Project.get_project_by_unique_id(unique_id);
+
+      res.status(200).json({
+        message: "Progetto trovato con successo",
+        project: project,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca del progetto:", error);
+      res.status(500).send("Ricerca del progetto fallita");
+    }
+  }
+
+  static async get_task_statuses(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let task_statuses = await Project.get_task_statuses(project_id);
+      res.status(200).json({
+        message: "Status task trovati con successo",
+        task_statuses: task_statuses,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca degli status task:", error);
+      res.status(500).send("Ricerca degli status task fallita");
+    }
+  }
+
+  static async get_task_priorities(req, res) {
+    try {
+      let task_priorities = await Project.get_task_priorities();
+      res.status(200).json({
+        message: "Priorità task trovati con successo",
+        task_priorities: task_priorities,
+      });
+    } catch (error) {}
+  }
 }
 
 module.exports = ProjectController;

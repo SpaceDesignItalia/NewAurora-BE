@@ -19,6 +19,22 @@ const projectGET = () => {
     ProjectController.get_project_statuses(req, res);
   });
 
+  router.get(
+    "/get-project-by-unique-id",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.get_project_by_unique_id(req, res);
+    }
+  );
+
+  router.get("/get-task-statuses", authenticateMiddleware, (req, res) => {
+    ProjectController.get_task_statuses(req, res);
+  });
+
+  router.get("/get-task-priorities", authenticateMiddleware, (req, res) => {
+    ProjectController.get_task_priorities(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

@@ -112,6 +112,38 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async get_project_by_unique_id(unique_id) {
+    console.log(unique_id);
+    try {
+      const project = await prisma.project.findUnique({
+        where: { unique_id: unique_id },
+      });
+      return project;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_task_statuses(project_id) {
+    try {
+      const task_statuses = await prisma.task_Status.findMany({
+        where: { project_id: project_id },
+      });
+      return task_statuses;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_task_priorities() {
+    try {
+      const task_priorities = await prisma.task_Priority.findMany();
+      return task_priorities;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;
