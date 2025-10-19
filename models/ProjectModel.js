@@ -114,7 +114,6 @@ class ProjectModel {
   }
 
   static async get_project_by_unique_id(unique_id) {
-    console.log(unique_id);
     try {
       const project = await prisma.project.findUnique({
         where: { unique_id: unique_id },
@@ -140,6 +139,81 @@ class ProjectModel {
     try {
       const task_priorities = await prisma.task_Priority.findMany();
       return task_priorities;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_sprints_by_project_id(project_id) {
+    try {
+      const sprints = await prisma.sprint.findMany({
+        where: { project_id: project_id },
+        include: {
+          tasks: {
+            include: {
+              task_status: true,
+              task_priority: true,
+              created_by: true,
+            },
+          },
+          project: true,
+          created_by: true,
+        },
+      });
+      return sprints;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_backlog_by_project_id(project_id) {
+    try {
+      const backlog = await prisma.task.findMany({
+        where: { project_id: project_id, sprint_id: null },
+        include: {
+          task_status: true,
+          task_priority: true,
+          project: true,
+          created_by: true,
+          sprint: true,
+        },
+      });
+      return backlog;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_tasks_by_project_id(project_id) {
+    try {
+      const tasks = await prisma.task.findMany({
+        where: { project_id: project_id },
+        include: {
+          task_status: true,
+          task_priority: true,
+          project: true,
+          created_by: true,
+          sprint: true,
+        },
+      });
+      return tasks;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_all_tasks() {
+    try {
+      const tasks = await prisma.task.findMany({
+        include: {
+          task_status: true,
+          task_priority: true,
+          project: true,
+          created_by: true,
+          sprint: true,
+        },
+      });
+      return tasks;
     } catch (error) {
       throw error;
     }
