@@ -18,6 +18,8 @@ model User {
   updated_at      DateTime         @updatedAt
   projects        Project[]
   project_members Project_Member[]
+  tasks           Task[]
+  sprints         Sprint[]
 }
 
 model Project_Status {
@@ -43,6 +45,9 @@ model Project {
   created_by        User             @relation(fields: [created_by_id], references: [user_id])
   project_status    Project_Status   @relation(fields: [project_status_id], references: [project_status_id])
   project_members   Project_Member[]
+  task_statuses     Task_Status[]
+  sprints           Sprint[]
+  tasks             Task[]
 }
 
 model Project_Member {
@@ -53,4 +58,59 @@ model Project_Member {
   updated_at        DateTime @updatedAt
   project           Project  @relation(fields: [project_id], references: [project_id])
   user              User     @relation(fields: [user_id], references: [user_id])
+}
+
+model Task_Status {
+  task_status_id BigInt    @id @default(autoincrement())
+  name           String 
+  color          String? @default("#000000")
+  project_id     BigInt
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  tasks          Task[]
+  project        Project   @relation(fields: [project_id], references: [project_id])
+}
+
+model Task_Priority {
+  task_priority_id BigInt    @id @default(autoincrement())
+  name             String
+  color            String? @default("#000000")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  tasks            Task[]
+}
+
+model Sprint {
+  sprint_id    BigInt    @id @default(autoincrement())
+  name         String
+  description  String?
+  start_date   DateTime
+  end_date     DateTime
+  is_active    Boolean   @default(false)
+  project_id   BigInt
+  created_by_id BigInt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  project      Project   @relation(fields: [project_id], references: [project_id])
+  created_by   User      @relation(fields: [created_by_id], references: [user_id])
+  tasks        Task[]
+}
+
+model Task {
+  task_id           BigInt        @id @default(autoincrement())
+  title             String
+  description       String
+  task_status_id    BigInt
+  task_priority_id  BigInt
+  story_points      Int?
+  sprint_id         BigInt?
+  project_id        BigInt
+  created_by_id     BigInt
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  task_status       Task_Status   @relation(fields: [task_status_id], references: [task_status_id])
+  task_priority     Task_Priority @relation(fields: [task_priority_id], references: [task_priority_id])
+  sprint            Sprint?       @relation(fields: [sprint_id], references: [sprint_id])
+  project           Project       @relation(fields: [project_id], references: [project_id])
+  created_by        User          @relation(fields: [created_by_id], references: [user_id])
 }

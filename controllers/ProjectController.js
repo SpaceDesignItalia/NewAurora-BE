@@ -1,5 +1,5 @@
 // controller/ProjectController.js
-const Project = require("../Models/ProjectModel");
+const Project = require("../models/ProjectModel");
 
 class ProjectController {
   static async create_project(req, res) {
@@ -74,6 +74,100 @@ class ProjectController {
     } catch (error) {
       console.error("Errore nell'eliminazione del progetto:", error);
       res.status(500).send("Eliminazione del progetto fallita");
+    }
+  }
+
+  static async get_project_by_unique_id(req, res) {
+    try {
+      const unique_id = req.query.unique_id;
+      let project = await Project.get_project_by_unique_id(unique_id);
+
+      res.status(200).json({
+        message: "Progetto trovato con successo",
+        project: project,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca del progetto:", error);
+      res.status(500).send("Ricerca del progetto fallita");
+    }
+  }
+
+  static async get_task_statuses(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let task_statuses = await Project.get_task_statuses(project_id);
+      res.status(200).json({
+        message: "Status task trovati con successo",
+        task_statuses: task_statuses,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca degli status task:", error);
+      res.status(500).send("Ricerca degli status task fallita");
+    }
+  }
+
+  static async get_task_priorities(req, res) {
+    try {
+      let task_priorities = await Project.get_task_priorities();
+      res.status(200).json({
+        message: "Priorità task trovati con successo",
+        task_priorities: task_priorities,
+      });
+    } catch (error) {}
+  }
+
+  static async get_sprints_by_project_id(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let sprints = await Project.get_sprints_by_project_id(project_id);
+      res.status(200).json({
+        message: "Sprints trovati con successo",
+        sprints: sprints,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca degli sprints:", error);
+      res.status(500).send("Ricerca degli sprints fallita");
+    }
+  }
+
+  static async get_backlog_by_project_id(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let backlog = await Project.get_backlog_by_project_id(project_id);
+      res.status(200).json({
+        message: "Backlog trovato con successo",
+        backlog: backlog,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca del backlog:", error);
+      res.status(500).send("Ricerca del backlog fallita");
+    }
+  }
+
+  static async get_tasks_by_project_id(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let tasks = await Project.get_tasks_by_project_id(project_id);
+      res.status(200).json({
+        message: "Task trovati con successo",
+        tasks: tasks,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca dei task:", error);
+      res.status(500).send("Ricerca dei task fallita");
+    }
+  }
+
+  static async get_all_tasks(req, res) {
+    try {
+      let tasks = await Project.get_all_tasks();
+      res.status(200).json({
+        message: "Task trovati con successo",
+        tasks: tasks,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca dei task:", error);
+      res.status(500).send("Ricerca dei task fallita");
     }
   }
 }
