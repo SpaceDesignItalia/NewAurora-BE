@@ -218,6 +218,33 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async create_task(task_data, user_id) {
+    try {
+      const task_data_to_create = {
+        title: task_data.title,
+        description: task_data.description,
+        task_status_id: parseInt(task_data.task_status_id),
+        task_priority_id: task_data.task_priority_id,
+        story_points: parseInt(task_data.story_points),
+        sprint_id: parseInt(task_data.sprint_id),
+        project_id: parseInt(task_data.project_id),
+        created_by_id: parseInt(user_id),
+      };
+
+      const task = await prisma.$transaction(async (tx) => {
+        // Crea il task
+        const newTask = await tx.task.create({
+          data: task_data_to_create,
+        });
+        return newTask;
+      });
+
+      return task;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;

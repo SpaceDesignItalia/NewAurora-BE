@@ -11,6 +11,9 @@ const projectPOST = () => {
     ProjectController.create_project(req, res);
   });
 
+  router.post("/create-task", authenticateMiddleware, (req, res) => {
+    ProjectController.create_task(req, res);
+  });
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

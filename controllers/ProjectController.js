@@ -170,6 +170,20 @@ class ProjectController {
       res.status(500).send("Ricerca dei task fallita");
     }
   }
+
+  static async create_task(req, res) {
+    try {
+      const task_data = req.body.task_data;
+      const user_id = req.session.account.user_id;
+      await Project.create_task(task_data, user_id);
+      res.status(200).json({
+        message: "Task creato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella creazione del task:", error);
+      res.status(500).send("Creazione del task fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;
