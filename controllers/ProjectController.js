@@ -198,6 +198,34 @@ class ProjectController {
       res.status(500).send("Creazione del sprint fallita");
     }
   }
+
+  static async move_task(req, res) {
+    try {
+      const task_id = req.body.task_id;
+      const target_sprint_id = req.body.target_sprint_id;
+      await Project.move_task(task_id, target_sprint_id);
+      res.status(200).json({
+        message: "Task spostato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nello spostamento del task:", error);
+      res.status(500).send("Spostamento del task fallito");
+    }
+  }
+
+  static async start_sprint(req, res) {
+    try {
+      const sprint_id = req.body.sprint_id;
+      const project_id = req.body.project_id;
+      await Project.start_sprint(sprint_id, project_id);
+      res.status(200).json({
+        message: "Sprint avviato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'avvio del sprint:", error);
+      res.status(500).send("Avvio del sprint fallito");
+    }
+  }
 }
 
 module.exports = ProjectController;

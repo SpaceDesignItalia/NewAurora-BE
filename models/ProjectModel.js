@@ -273,5 +273,57 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async move_task(task_id, target_sprint_id) {
+    try {
+      const task = await prisma.$transaction(async (tx) => {
+        // Aggiorna il task
+        const updatedTask = await tx.task.update({
+          where: { task_id: parseInt(task_id) },
+          data: { sprint_id: parseInt(target_sprint_id) },
+        });
+        return updatedTask;
+      });
+      return task;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async start_sprint(sprint_id, project_id) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Trova lo sprint attivo esistente
+        const old_active_sprint = await tx.sprint.findFirst({
+          where: {
+            project_id: parseInt(project_id),
+            is_active: true,
+          },
+        });
+
+        // Se esiste uno sprint attivo, disattivalo
+        let updatedOldSprint = null;
+        if (old_active_sprint) {
+          updatedOldSprint = await tx.sprint.update({
+            where: { sprint_id: old_active_sprint.sprint_id },
+            data: { is_active: false },
+          });
+        }
+
+        // Attiva il nuovo sprint
+        const new_active_sprint = await tx.sprint.update({
+          where: { sprint_id: parseInt(sprint_id) },
+          data: { is_active: true },
+        });
+
+        return { old_active_sprint: updatedOldSprint, new_active_sprint };
+      });
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
+
 module.exports = ProjectModel;
