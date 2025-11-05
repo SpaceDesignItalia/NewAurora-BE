@@ -245,6 +245,33 @@ class ProjectModel {
       throw error;
     }
   }
-}
 
+  static async create_sprint(sprint_data, user_id) {
+    try {
+      // Converti le date nel formato ISO-8601
+      const startDate = new Date(sprint_data.start_date + "T00:00:00.000Z");
+      const endDate = new Date(sprint_data.end_date + "T23:59:59.999Z");
+
+      const sprint_data_to_create = {
+        name: sprint_data.name,
+        description: sprint_data.description,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        project_id: parseInt(sprint_data.project_id),
+        created_by_id: parseInt(user_id),
+      };
+
+      const sprint = await prisma.$transaction(async (tx) => {
+        // Crea il sprint
+        const newSprint = await tx.sprint.create({
+          data: sprint_data_to_create,
+        });
+        return newSprint;
+      });
+      return sprint;
+    } catch (error) {
+      throw error;
+    }
+  }
+}
 module.exports = ProjectModel;

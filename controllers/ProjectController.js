@@ -184,6 +184,20 @@ class ProjectController {
       res.status(500).send("Creazione del task fallita");
     }
   }
+
+  static async create_sprint(req, res) {
+    try {
+      const sprint_data = req.body.sprint_data;
+      const user_id = req.session.account.user_id;
+      await Project.create_sprint(sprint_data, user_id);
+      res.status(200).json({
+        message: "Sprint creato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella creazione del sprint:", error);
+      res.status(500).send("Creazione del sprint fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;
