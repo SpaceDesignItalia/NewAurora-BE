@@ -87,13 +87,15 @@ model Sprint {
   start_date   DateTime
   end_date     DateTime
   is_active    Boolean   @default(false)
-  project_id   BigInt
+  is_completed Boolean   @default(false)
+  project_id    BigInt
   created_by_id BigInt
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  project      Project   @relation(fields: [project_id], references: [project_id])
-  created_by   User      @relation(fields: [created_by_id], references: [user_id])
-  tasks        Task[]
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  project       Project   @relation(fields: [project_id], references: [project_id])
+  created_by    User      @relation(fields: [created_by_id], references: [user_id])
+  tasks         Task[]
+  completed_at  DateTime?
 }
 
 model Task {

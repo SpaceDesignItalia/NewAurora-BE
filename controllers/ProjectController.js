@@ -226,6 +226,19 @@ class ProjectController {
       res.status(500).send("Avvio del sprint fallito");
     }
   }
+
+  static async complete_sprint(req, res) {
+    try {
+      const sprint_id = req.body.sprint_id;
+      await Project.complete_sprint(sprint_id);
+      res.status(200).json({
+        message: "Sprint completato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella completa del sprint:", error);
+      res.status(500).send("Completa del sprint fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;

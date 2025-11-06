@@ -280,7 +280,10 @@ class ProjectModel {
         // Aggiorna il task
         const updatedTask = await tx.task.update({
           where: { task_id: parseInt(task_id) },
-          data: { sprint_id: parseInt(target_sprint_id) },
+          data: {
+            sprint_id: parseInt(target_sprint_id),
+            updated_at: new Date(),
+          },
         });
         return updatedTask;
       });
@@ -306,19 +309,39 @@ class ProjectModel {
         if (old_active_sprint) {
           updatedOldSprint = await tx.sprint.update({
             where: { sprint_id: old_active_sprint.sprint_id },
-            data: { is_active: false },
+            data: { is_active: false, updated_at: new Date() },
           });
         }
 
         // Attiva il nuovo sprint
         const new_active_sprint = await tx.sprint.update({
           where: { sprint_id: parseInt(sprint_id) },
-          data: { is_active: true },
+          data: { is_active: true, updated_at: new Date() },
         });
 
         return { old_active_sprint: updatedOldSprint, new_active_sprint };
       });
 
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async complete_sprint(sprint_id) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Completa il sprint
+        const completedSprint = await tx.sprint.update({
+          where: { sprint_id: parseInt(sprint_id) },
+          data: {
+            is_active: false,
+            is_completed: true,
+            completed_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+      });
       return result;
     } catch (error) {
       throw error;
