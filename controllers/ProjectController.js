@@ -239,6 +239,32 @@ class ProjectController {
       res.status(500).send("Completa del sprint fallita");
     }
   }
+
+  static async delete_sprint(req, res) {
+    try {
+      const sprint_id = req.query.sprint_id;
+      await Project.delete_sprint(sprint_id);
+      res.status(200).json({
+        message: "Sprint eliminato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione del sprint:", error);
+      res.status(500).send("Eliminazione del sprint fallita");
+    }
+  }
+
+  static async delete_task(req, res) {
+    try {
+      const task_id = req.query.task_id;
+      await Project.delete_task(task_id);
+      res.status(200).json({
+        message: "Task eliminato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione del task:", error);
+      res.status(500).send("Eliminazione del task fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;

@@ -11,6 +11,14 @@ const projectDELETE = () => {
     ProjectController.delete_project(req, res);
   });
 
+  router.delete("/delete-sprint", authenticateMiddleware, (req, res) => {
+    ProjectController.delete_sprint(req, res);
+  });
+
+  router.delete("/delete-task", authenticateMiddleware, (req, res) => {
+    ProjectController.delete_task(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

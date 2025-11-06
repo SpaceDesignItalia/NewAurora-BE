@@ -347,6 +347,32 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async delete_sprint(sprint_id) {
+    try {
+      await prisma.sprint.delete({
+        where: { sprint_id: parseInt(sprint_id) },
+      });
+      return {
+        message: "Sprint eliminato con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete_task(task_id) {
+    try {
+      await prisma.task.delete({
+        where: { task_id: parseInt(task_id) },
+      });
+      return {
+        message: "Task eliminato con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;
