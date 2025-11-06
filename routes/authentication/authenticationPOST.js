@@ -19,6 +19,22 @@ const authenticationPOST = () => {
     AuthenticationController.logout(req, res);
   });
 
+  router.post("/forgot-password", (req, res) => {
+    AuthenticationController.forgotPassword(req, res);
+  });
+
+  router.post("/resend-otp", (req, res) => {
+    AuthenticationController.resendOTP(req, res);
+  });
+
+  router.post("/verify-otp", (req, res) => {
+    AuthenticationController.verifyOTP(req, res);
+  });
+
+  router.post("/reset-password", (req, res) => {
+    AuthenticationController.resetPassword(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

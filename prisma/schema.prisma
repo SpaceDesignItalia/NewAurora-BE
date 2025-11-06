@@ -20,6 +20,18 @@ model User {
   project_members Project_Member[]
   tasks           Task[]
   sprints         Sprint[]
+  password_resets PasswordReset[]
+}
+
+model PasswordReset {
+  password_reset_id BigInt   @id @default(autoincrement())
+  email             String
+  otp               String
+  expires_at        DateTime
+  is_used           Boolean  @default(false)
+  created_at        DateTime @default(now())
+  user_id           BigInt?
+  user              User?    @relation(fields: [user_id], references: [user_id])
 }
 
 model Project_Status {
