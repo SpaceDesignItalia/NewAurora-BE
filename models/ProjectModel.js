@@ -117,6 +117,13 @@ class ProjectModel {
     try {
       const project = await prisma.project.findUnique({
         where: { unique_id: unique_id },
+        include: {
+          project_status: true,
+          created_by: true,
+          project_members: true,
+          tasks: true,
+          sprints: true,
+        },
       });
       return project;
     } catch (error) {
