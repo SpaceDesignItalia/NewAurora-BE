@@ -66,12 +66,12 @@ class AuthenticationModel {
   }
 
   // Genera un OTP a 6 cifre
-  static generateOTP() {
+  static generate_otp() {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   // Crea un record di reset password con OTP
-  static async createPasswordReset(email) {
+  static async create_password_reset(email) {
     try {
       // Normalizza l'email
       const normalizedEmail = String(email).trim().toLowerCase();
@@ -88,7 +88,7 @@ class AuthenticationModel {
       }
 
       // Invalida i vecchi OTP per questo utente
-      await prisma.passwordReset.updateMany({
+      await prisma.Password_Reset.updateMany({
         where: {
           email: normalizedEmail,
           is_used: false,
@@ -99,12 +99,12 @@ class AuthenticationModel {
       });
 
       // Genera nuovo OTP
-      const otp = this.generateOTP();
+      const otp = this.generate_otp();
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + 15); // OTP valido per 15 minuti
 
       // Crea il record di reset password
-      const passwordReset = await prisma.passwordReset.create({
+      const password_reset = await prisma.Password_Reset.create({
         data: {
           email: normalizedEmail,
           otp: otp,
@@ -113,25 +113,28 @@ class AuthenticationModel {
         },
       });
 
-      return passwordReset;
+      return password_reset;
     } catch (error) {
-      console.error("AuthenticationModel.createPasswordReset - Errore:", error);
+      console.error(
+        "AuthenticationModel.create_password_reset - Errore:",
+        error
+      );
       throw error;
     }
   }
 
   // Verifica l'OTP
-  static async verifyOTP(email, otp) {
+  static async verify_otp(email, otp) {
     try {
       // Normalizza l'OTP come stringa e verifica la lunghezza
       const otpString = String(otp).trim();
-      
+
       if (!otpString || otpString.length !== 6) {
         return { valid: false, message: "OTP non valido" };
       }
 
       // Trova l'OTP più recente e non utilizzato per questa email
-      const passwordReset = await prisma.passwordReset.findFirst({
+      const password_reset = await prisma.Password_Reset.findFirst({
         where: {
           email: email,
           otp: otpString,
@@ -142,31 +145,33 @@ class AuthenticationModel {
         },
       });
 
-      if (!passwordReset) {
+      if (!password_reset) {
         return { valid: false, message: "OTP non valido" };
       }
 
       // Verifica se l'OTP è scaduto
       const now = new Date();
-      const expiresAt = new Date(passwordReset.expires_at);
-      
+      const expiresAt = new Date(password_reset.expires_at);
+
       if (now > expiresAt) {
         return { valid: false, message: "OTP scaduto" };
       }
 
-      return { valid: true, passwordReset: passwordReset };
+      return { valid: true, password_reset: password_reset };
     } catch (error) {
-      console.error("AuthenticationModel.verifyOTP - Errore:", error);
+      console.error("AuthenticationModel.verify_otp - Errore:", error);
       // Se c'è un errore del database (es. tabella non esiste), restituisci errore
-      if (error.code === 'P2021' || error.message?.includes('does not exist')) {
-        throw new Error("Errore del database: tabella PasswordReset non trovata");
+      if (error.code === "P2021" || error.message?.includes("does not exist")) {
+        throw new Error(
+          "Errore del database: tabella password_reset non trovata"
+        );
       }
       throw error;
     }
   }
 
   // Resetta la password dell'utente
-  static async resetPassword(email, newPassword) {
+  static async reset_password(email, newPassword) {
     try {
       // Normalizza l'email
       const normalizedEmail = String(email).trim().toLowerCase();
@@ -185,7 +190,9 @@ class AuthenticationModel {
       // Verifica se la nuova password è uguale alla password attuale
       const isSamePassword = bcrypt.compareSync(newPassword, user.password);
       if (isSamePassword) {
-        throw new Error("La nuova password deve essere diversa dalla password attuale");
+        throw new Error(
+          "La nuova password deve essere diversa dalla password attuale"
+        );
       }
 
       // Hash della nuova password
@@ -202,7 +209,7 @@ class AuthenticationModel {
       });
 
       // Marca tutti gli OTP per questo utente come utilizzati
-      await prisma.passwordReset.updateMany({
+      await prisma.Password_Reset.updateMany({
         where: {
           email: normalizedEmail,
           is_used: false,

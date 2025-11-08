@@ -380,6 +380,27 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async create_task_status(task_status_data, user_id) {
+    try {
+      const task_status_data_to_create = {
+        name: task_status_data.name,
+        color: task_status_data.color,
+        project_id: parseInt(task_status_data.project_id),
+        created_by_id: parseInt(user_id),
+      };
+      const task_status = await prisma.$transaction(async (tx) => {
+        // Crea la colonna
+        const newTaskStatus = await tx.task_Status.create({
+          data: task_status_data_to_create,
+        });
+        return newTaskStatus;
+      });
+      return task_status;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;

@@ -18,6 +18,10 @@ const projectPOST = () => {
   router.post("/create-sprint", authenticateMiddleware, (req, res) => {
     ProjectController.create_sprint(req, res);
   });
+
+  router.post("/create-task-status", authenticateMiddleware, (req, res) => {
+    ProjectController.create_task_status(req, res);
+  });
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

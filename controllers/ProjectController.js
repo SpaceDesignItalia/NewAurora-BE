@@ -265,6 +265,20 @@ class ProjectController {
       res.status(500).send("Eliminazione del task fallita");
     }
   }
+
+  static async create_task_status(req, res) {
+    try {
+      const task_status_data = req.body.task_status_data;
+      const user_id = req.session.account.user_id;
+      await Project.create_task_status(task_status_data, user_id);
+      res.status(200).json({
+        message: "Colonna creata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella creazione della colonna:", error);
+      res.status(500).send("Creazione della colonna fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;

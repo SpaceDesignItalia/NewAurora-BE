@@ -1,8 +1,8 @@
 // authenticationGET.js
 const express = require("express");
 const router = express.Router();
-const AuthenticationController = require("../../Controllers/AuthenticationController");
-const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
+const AuthenticationController = require("../../controllers/AuthenticationController");
+const authenticateMiddleware = require("../../middlewares/Authentication/authmiddleware");
 
 const authenticationGET = () => {
   // Definisci le route GET qui

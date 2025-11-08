@@ -110,7 +110,7 @@ class AuthenticationController {
   }
 
   // Gestisce la richiesta di recupero password
-  static async forgotPassword(req, res) {
+  static async forgot_password(req, res) {
     try {
       const { email } = req.body;
 
@@ -125,13 +125,13 @@ class AuthenticationController {
       const normalizedEmail = String(email).trim().toLowerCase();
 
       // Crea il record di reset password e genera l'OTP
-      const passwordReset = await Authentication.createPasswordReset(
+      const password_reset = await Authentication.create_password_reset(
         normalizedEmail
       );
 
       // Se l'utente non esiste, restituisci comunque successo per sicurezza
       // (non rivelare se un'email esiste o meno nel database)
-      if (passwordReset === false) {
+      if (password_reset === false) {
         return res.status(404).json({
           error: "Email non trovata",
           message:
@@ -141,9 +141,9 @@ class AuthenticationController {
 
       // Invia l'email con l'OTP
       try {
-        await EmailService.sendPasswordResetOTP(
+        await EmailService.send_password_reset_otp(
           normalizedEmail,
-          passwordReset.otp
+          password_reset.otp
         );
       } catch (emailError) {
         console.error("Errore nell'invio dell'email:", emailError);
@@ -165,7 +165,7 @@ class AuthenticationController {
   }
 
   // Reinvia l'OTP
-  static async resendOTP(req, res) {
+  static async resend_otp(req, res) {
     try {
       const { email } = req.body;
 
@@ -180,11 +180,11 @@ class AuthenticationController {
       const normalizedEmail = String(email).trim().toLowerCase();
 
       // Crea un nuovo record di reset password e genera un nuovo OTP
-      const passwordReset = await Authentication.createPasswordReset(
+      const password_reset = await Authentication.create_password_reset(
         normalizedEmail
       );
 
-      if (passwordReset === false) {
+      if (password_reset === false) {
         return res.status(404).json({
           error: "Email non trovata",
           message:
@@ -194,9 +194,9 @@ class AuthenticationController {
 
       // Invia l'email con il nuovo OTP
       try {
-        await EmailService.sendPasswordResetOTP(
+        await EmailService.send_password_reset_otp(
           normalizedEmail,
-          passwordReset.otp
+          password_reset.otp
         );
       } catch (emailError) {
         console.error("Errore nell'invio dell'email:", emailError);
@@ -215,7 +215,7 @@ class AuthenticationController {
   }
 
   // Verifica l'OTP e opzionalmente resetta la password
-  static async verifyOTP(req, res) {
+  static async verify_otp(req, res) {
     try {
       const { email, otp, newPassword } = req.body;
 
@@ -239,7 +239,7 @@ class AuthenticationController {
       }
 
       // Verifica l'OTP
-      const verification = await Authentication.verifyOTP(
+      const verification = await Authentication.verify_otp(
         normalizedEmail,
         normalizedOtp
       );
@@ -261,7 +261,7 @@ class AuthenticationController {
           });
         }
 
-        const resetSuccess = await Authentication.resetPassword(
+        const resetSuccess = await Authentication.reset_password(
           normalizedEmail,
           newPassword
         );
@@ -302,7 +302,7 @@ class AuthenticationController {
   }
 
   // Resetta la password dopo la verifica OTP
-  static async resetPassword(req, res) {
+  static async reset_password(req, res) {
     try {
       const { email, otp, new_password } = req.body;
 
@@ -334,7 +334,7 @@ class AuthenticationController {
       }
 
       // Verifica l'OTP prima di resettare la password
-      const verification = await Authentication.verifyOTP(
+      const verification = await Authentication.verify_otp(
         normalizedEmail,
         normalizedOtp
       );
@@ -348,7 +348,7 @@ class AuthenticationController {
       }
 
       // Resetta la password
-      const resetSuccess = await Authentication.resetPassword(
+      const resetSuccess = await Authentication.reset_password(
         normalizedEmail,
         new_password
       );
@@ -383,7 +383,7 @@ class AuthenticationController {
       }
 
       // Gestione specifica per errori del database
-      if (error.message?.includes("tabella PasswordReset non trovata")) {
+      if (error.message?.includes("tabella password_reset non trovata")) {
         return res.status(500).json({
           error: "Errore del database",
           message:

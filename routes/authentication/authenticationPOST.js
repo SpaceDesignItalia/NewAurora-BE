@@ -1,8 +1,8 @@
 // authenticationPOST.js
 const express = require("express");
 const router = express.Router();
-const AuthenticationController = require("../../Controllers/AuthenticationController");
-const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
+const AuthenticationController = require("../../controllers/AuthenticationController");
+const authenticateMiddleware = require("../../middlewares/Authentication/authmiddleware");
 
 const authenticationPOST = () => {
   // Definisci le route POST qui
@@ -20,19 +20,19 @@ const authenticationPOST = () => {
   });
 
   router.post("/forgot-password", (req, res) => {
-    AuthenticationController.forgotPassword(req, res);
+    AuthenticationController.forgot_password(req, res);
   });
 
   router.post("/resend-otp", (req, res) => {
-    AuthenticationController.resendOTP(req, res);
+    AuthenticationController.resend_otp(req, res);
   });
 
   router.post("/verify-otp", (req, res) => {
-    AuthenticationController.verifyOTP(req, res);
+    AuthenticationController.verify_otp(req, res);
   });
 
   router.post("/reset-password", (req, res) => {
-    AuthenticationController.resetPassword(req, res);
+    AuthenticationController.reset_password(req, res);
   });
 
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale

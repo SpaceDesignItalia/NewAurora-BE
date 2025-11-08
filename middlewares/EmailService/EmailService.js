@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
 
 class EmailService {
   // Invia email con codice OTP per il recupero password
-  static async sendPasswordResetOTP(email, otp) {
+  static async send_password_reset_otp(email, otp) {
     try {
       const mailOptions = {
         from: `"NewAurora" <${mailData.mail}>`,

@@ -20,10 +20,11 @@ model User {
   project_members Project_Member[]
   tasks           Task[]
   sprints         Sprint[]
-  password_resets PasswordReset[]
+  password_resets Password_Reset[]
+  task_statuses   Task_Status[]
 }
 
-model PasswordReset {
+model Password_Reset {
   password_reset_id BigInt   @id @default(autoincrement())
   email             String
   otp               String
@@ -77,10 +78,12 @@ model Task_Status {
   name           String 
   color          String? @default("#000000")
   project_id     BigInt
+  created_by_id  BigInt    @default(1)
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
   tasks          Task[]
   project        Project   @relation(fields: [project_id], references: [project_id])
+  created_by     User      @relation(fields: [created_by_id], references: [user_id])
 }
 
 model Task_Priority {
