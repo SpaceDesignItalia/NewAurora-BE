@@ -20,6 +20,18 @@ model User {
   project_members Project_Member[]
   tasks           Task[]
   sprints         Sprint[]
+  password_resets PasswordReset[]
+}
+
+model PasswordReset {
+  password_reset_id BigInt   @id @default(autoincrement())
+  email             String
+  otp               String
+  expires_at        DateTime
+  is_used           Boolean  @default(false)
+  created_at        DateTime @default(now())
+  user_id           BigInt?
+  user              User?    @relation(fields: [user_id], references: [user_id])
 }
 
 model Project_Status {
@@ -115,4 +127,28 @@ model Task {
   sprint            Sprint?       @relation(fields: [sprint_id], references: [sprint_id])
   project           Project       @relation(fields: [project_id], references: [project_id])
   created_by        User          @relation(fields: [created_by_id], references: [user_id])
+}
+
+
+model Feature_Flag {
+  feature_flag_id BigInt    @id @default(autoincrement())
+  name            String
+  key             String
+  description     String?
+  default_value   Boolean
+  targets         Target[]
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model Target {
+  target_id BigInt    @id @default(autoincrement())
+  name      String
+  type      String
+  operator  String
+  value     String
+  feature_flag_id BigInt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  feature_flag Feature_Flag @relation(fields: [feature_flag_id], references: [feature_flag_id])
 }

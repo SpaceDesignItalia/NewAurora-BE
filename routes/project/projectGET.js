@@ -59,6 +59,10 @@ const projectGET = () => {
     ProjectController.get_all_tasks(req, res);
   });
 
+  router.get("/get-feature-flag", (req, res) => {
+    ProjectController.get_feature_flags(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

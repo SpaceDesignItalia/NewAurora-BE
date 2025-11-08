@@ -171,6 +171,16 @@ class ProjectController {
     }
   }
 
+  static async get_feature_flags(req, res) {
+    try {
+      console.log("Ricerca delle feature flags");
+      console.log(req);
+    } catch (error) {
+      console.error("Errore nella ricerca delle feature flags:", error);
+      res.status(500).send("Ricerca delle feature flags fallita");
+    }
+  }
+
   static async create_task(req, res) {
     try {
       const task_data = req.body.task_data;
