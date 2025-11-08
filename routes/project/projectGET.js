@@ -59,6 +59,10 @@ const projectGET = () => {
     ProjectController.get_all_tasks(req, res);
   });
 
+  router.get("/get-sprint-by-id", authenticateMiddleware, (req, res) => {
+    ProjectController.get_sprint_by_id(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

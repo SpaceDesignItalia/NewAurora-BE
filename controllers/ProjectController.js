@@ -279,6 +279,34 @@ class ProjectController {
       res.status(500).send("Creazione della colonna fallita");
     }
   }
+
+  static async get_sprint_by_id(req, res) {
+    try {
+      const sprint_id = req.query.sprint_id;
+      let sprint = await Project.get_sprint_by_id(sprint_id);
+      res.status(200).json({
+        message: "Sprint trovato con successo",
+        sprint: sprint,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca del sprint:", error);
+      res.status(500).send("Ricerca del sprint fallita");
+    }
+  }
+
+  static async update_sprint(req, res) {
+    try {
+      const sprint_id = req.body.sprint_id;
+      const sprint_data = req.body.sprint_data;
+      await Project.update_sprint(sprint_id, sprint_data);
+      res.status(200).json({
+        message: "Sprint modificato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella modifica del sprint:", error);
+      res.status(500).send("Modifica del sprint fallita");
+    }
+  }
 }
 
 module.exports = ProjectController;

@@ -401,6 +401,42 @@ class ProjectModel {
       throw error;
     }
   }
+
+  static async get_sprint_by_id(sprint_id) {
+    try {
+      const sprint = await prisma.sprint.findUnique({
+        where: { sprint_id: parseInt(sprint_id) },
+      });
+      return sprint;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_sprint(sprint_id, sprint_data) {
+    try {
+      const startDate = new Date(sprint_data.start_date + "T00:00:00.000Z");
+      const endDate = new Date(sprint_data.end_date + "T23:59:59.999Z");
+      const sprint_data_to_update = {
+        name: sprint_data.name,
+        description: sprint_data.description,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        updated_at: new Date(),
+      };
+      const sprint = await prisma.$transaction(async (tx) => {
+        // Aggiorna il sprint
+        const updatedSprint = await tx.sprint.update({
+          where: { sprint_id: parseInt(sprint_id) },
+          data: sprint_data_to_update,
+        });
+        return updatedSprint;
+      });
+      return sprint;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = ProjectModel;

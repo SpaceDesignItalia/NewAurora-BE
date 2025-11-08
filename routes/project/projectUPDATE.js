@@ -19,6 +19,10 @@ const projectUPDATE = () => {
     ProjectController.complete_sprint(req, res);
   });
 
+  router.put("/update-sprint", authenticateMiddleware, (req, res) => {
+    ProjectController.update_sprint(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 
