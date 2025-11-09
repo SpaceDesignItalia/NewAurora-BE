@@ -121,8 +121,20 @@ class ProjectModel {
           project_status: true,
           created_by: true,
           project_members: true,
-          tasks: true,
-          sprints: true,
+          tasks: {
+            include: {
+              task_status: true,
+            },
+          },
+          sprints: {
+            include: {
+              tasks: {
+                include: {
+                  task_status: true,
+                },
+              },
+            },
+          },
         },
       });
       return project;
@@ -433,6 +445,22 @@ class ProjectModel {
         return updatedSprint;
       });
       return sprint;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_task_status(task_id, task_status_id) {
+    try {
+      const task = await prisma.$transaction(async (tx) => {
+        // Aggiorna il task
+        const updatedTask = await tx.task.update({
+          where: { task_id: parseInt(task_id) },
+          data: { task_status_id: parseInt(task_status_id) },
+        });
+        return updatedTask;
+      });
+      return task;
     } catch (error) {
       throw error;
     }

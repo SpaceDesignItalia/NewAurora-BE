@@ -307,6 +307,20 @@ class ProjectController {
       res.status(500).send("Modifica del sprint fallita");
     }
   }
+
+  static async update_task_status(req, res) {
+    try {
+      const task_id = req.body.task_id;
+      const task_status_id = req.body.task_status_id;
+      await Project.update_task_status(task_id, task_status_id);
+      res.status(200).json({
+        message: "Task aggiornato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del task:", error);
+      res.status(500).send("Aggiornamento del task fallito");
+    }
+  }
 }
 
 module.exports = ProjectController;

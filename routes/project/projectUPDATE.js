@@ -23,6 +23,10 @@ const projectUPDATE = () => {
     ProjectController.update_sprint(req, res);
   });
 
+  router.put("/update-task-status", authenticateMiddleware, (req, res) => {
+    ProjectController.update_task_status(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 
