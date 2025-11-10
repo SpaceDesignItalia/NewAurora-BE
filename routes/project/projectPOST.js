@@ -22,6 +22,11 @@ const projectPOST = () => {
   router.post("/create-task-status", authenticateMiddleware, (req, res) => {
     ProjectController.create_task_status(req, res);
   });
+
+  router.post("/:project_id/vault", authenticateMiddleware, (req, res) => {
+    ProjectController.create_vault_entry(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

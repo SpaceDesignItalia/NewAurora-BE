@@ -61,6 +61,31 @@ model Project {
   task_statuses     Task_Status[]
   sprints           Sprint[]
   tasks             Task[]
+  vault_entries     Vault[]
+}
+
+model Vault {
+  vault_id    BigInt        @id @default(autoincrement())
+  project_id  BigInt
+  key         String
+  value       String
+  is_sensitive Boolean       @default(false)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  project     Project        @relation(fields: [project_id], references: [project_id])
+  history     Vault_History[]
+  
+  @@unique([project_id, key])
+}
+
+model Vault_History {
+  vault_history_id BigInt   @id @default(autoincrement())
+  vault_id         BigInt
+  key              String
+  value            String
+  is_sensitive     Boolean   @default(false)
+  changed_at       DateTime  @default(now())
+  vault            Vault     @relation(fields: [vault_id], references: [vault_id])
 }
 
 model Project_Member {

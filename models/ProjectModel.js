@@ -1,4 +1,5 @@
 const { PrismaClient } = require("../generated/prisma");
+const VaultEncryptionService = require("../services/VaultEncryptionService");
 
 const prisma = new PrismaClient();
 
@@ -461,6 +462,307 @@ class ProjectModel {
         return updatedTask;
       });
       return task;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // ========== METODI VAULT ==========
+
+  // Ottiene tutte le entry del vault per un progetto
+  static async get_vault_entries_by_project_id(project_id) {
+    try {
+      const vault_entries = await prisma.vault.findMany({
+        where: {
+          project_id: BigInt(project_id),
+        },
+        orderBy: {
+          created_at: "desc",
+        },
+      });
+
+      // Decifra i valori sensibili
+      const decrypted_entries = vault_entries.map((entry) => {
+        if (entry.is_sensitive && entry.value) {
+          try {
+            entry.value = VaultEncryptionService.decrypt(entry.value);
+          } catch (error) {
+            console.error(
+              `Errore nella decifratura del vault_id ${entry.vault_id}:`,
+              error
+            );
+            // Mantieni il valore cifrato in caso di errore
+          }
+        }
+        return entry;
+      });
+
+      return decrypted_entries;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Ottiene una entry del vault per ID
+  static async get_vault_entry_by_id(vault_id) {
+    try {
+      const vault_entry = await prisma.vault.findUnique({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+      });
+
+      if (!vault_entry) {
+        return null;
+      }
+
+      // Decifra il valore se sensibile
+      if (vault_entry.is_sensitive && vault_entry.value) {
+        try {
+          vault_entry.value = VaultEncryptionService.decrypt(vault_entry.value);
+        } catch (error) {
+          console.error(
+            `Errore nella decifratura del vault_id ${vault_id}:`,
+            error
+          );
+        }
+      }
+
+      return vault_entry;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Crea una nuova entry del vault
+  static async create_vault_entry(project_id, key, value, is_sensitive) {
+    try {
+      // Validazione key
+      if (!key || !key.trim()) {
+        throw new Error("La chiave è obbligatoria");
+      }
+
+      // Validazione key unica
+      const existing = await prisma.vault.findUnique({
+        where: {
+          project_id_key: {
+            project_id: BigInt(project_id),
+            key: key.trim(),
+          },
+        },
+      });
+
+      if (existing) {
+        throw new Error("Questa chiave esiste già per questo progetto");
+      }
+
+      // Cifra il valore se sensibile
+      let encrypted_value = value;
+      if (is_sensitive && value) {
+        try {
+          encrypted_value = VaultEncryptionService.encrypt(value);
+        } catch (error) {
+          console.error("Errore nella cifratura del valore:", error);
+          throw new Error("Impossibile cifrare il valore sensibile");
+        }
+      }
+
+      const vault_entry = await prisma.vault.create({
+        data: {
+          project_id: BigInt(project_id),
+          key: key.trim(),
+          value: encrypted_value,
+          is_sensitive: is_sensitive || false,
+        },
+      });
+
+      // Restituisci il valore decifrato per la risposta
+      vault_entry.value = value;
+      return vault_entry;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Aggiorna una entry del vault
+  static async update_vault_entry(vault_id, key, value, is_sensitive) {
+    try {
+      // Validazione key
+      if (!key || !key.trim()) {
+        throw new Error("La chiave è obbligatoria");
+      }
+
+      // Ottiene l'entry corrente per salvare nella history
+      const current_entry = await prisma.vault.findUnique({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+      });
+
+      if (!current_entry) {
+        throw new Error("Entry del vault non trovata");
+      }
+
+      // Verifica se la chiave esiste già per questo progetto (escludendo l'entry corrente)
+      if (key.trim() !== current_entry.key) {
+        const existing = await prisma.vault.findUnique({
+          where: {
+            project_id_key: {
+              project_id: current_entry.project_id,
+              key: key.trim(),
+            },
+          },
+        });
+
+        if (existing) {
+          throw new Error("Questa chiave esiste già per questo progetto");
+        }
+      }
+
+      // Determina se il valore è sensibile
+      const final_is_sensitive =
+        is_sensitive !== undefined ? is_sensitive : current_entry.is_sensitive;
+
+      // Cifra il valore se sensibile
+      let encrypted_value = value;
+      if (final_is_sensitive && value) {
+        try {
+          encrypted_value = VaultEncryptionService.encrypt(value);
+        } catch (error) {
+          console.error("Errore nella cifratura del valore:", error);
+          throw new Error("Impossibile cifrare il valore sensibile");
+        }
+      }
+
+      // Salva nella history prima di aggiornare (con valore decifrato per la history)
+      let history_value = current_entry.value;
+      if (current_entry.is_sensitive) {
+        try {
+          history_value = VaultEncryptionService.decrypt(current_entry.value);
+        } catch (error) {
+          console.error("Errore nella decifratura per history:", error);
+          history_value = current_entry.value; // Mantieni cifrato se errore
+        }
+      }
+
+      await prisma.vault_History.create({
+        data: {
+          vault_id: BigInt(vault_id),
+          key: current_entry.key,
+          value: history_value,
+          is_sensitive: current_entry.is_sensitive,
+        },
+      });
+
+      // Aggiorna l'entry
+      const updated_entry = await prisma.vault.update({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+        data: {
+          key: key.trim(),
+          value: encrypted_value,
+          is_sensitive: final_is_sensitive,
+        },
+      });
+
+      // Restituisci il valore decifrato per la risposta
+      updated_entry.value = value;
+      return updated_entry;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Elimina una entry del vault
+  static async delete_vault_entry(vault_id) {
+    try {
+      // Ottieni l'entry prima di eliminarla per il log
+      const entry = await prisma.vault.findUnique({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+      });
+
+      if (!entry) {
+        throw new Error("Entry del vault non trovata");
+      }
+
+      // Elimina prima la history
+      await prisma.vault_History.deleteMany({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+      });
+
+      // Elimina l'entry
+      const deleted_entry = await prisma.vault.delete({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+      });
+
+      return deleted_entry;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Ottiene la cronologia di una entry del vault
+  static async get_vault_history(vault_id) {
+    try {
+      const history = await prisma.vault_History.findMany({
+        where: {
+          vault_id: BigInt(vault_id),
+        },
+        orderBy: {
+          changed_at: "desc",
+        },
+      });
+
+      return history;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Ottiene tutte le entry del vault per l'export (con valori decifrati)
+  static async get_vault_entries_for_export(
+    project_id,
+    filter_sensitive = false
+  ) {
+    try {
+      const vault_entries = await prisma.vault.findMany({
+        where: {
+          project_id: BigInt(project_id),
+        },
+        orderBy: {
+          created_at: "desc",
+        },
+      });
+
+      // Decifra tutti i valori (anche sensibili per l'export)
+      const decrypted_entries = vault_entries.map((entry) => {
+        if (entry.is_sensitive && entry.value) {
+          try {
+            entry.value = VaultEncryptionService.decrypt(entry.value);
+          } catch (error) {
+            console.error(
+              `Errore nella decifratura del vault_id ${entry.vault_id}:`,
+              error
+            );
+            // Mantieni il valore cifrato in caso di errore
+          }
+        }
+        return entry;
+      });
+
+      // Filtra i valori sensibili se richiesto
+      if (filter_sensitive) {
+        return decrypted_entries.filter((entry) => !entry.is_sensitive);
+      }
+
+      return decrypted_entries;
     } catch (error) {
       throw error;
     }
