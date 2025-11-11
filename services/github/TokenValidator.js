@@ -8,11 +8,19 @@ const GitHubOAuthService = require("./OAuthService");
 
 class TokenValidator {
   /**
-   * Estrae token da header Authorization o body
+   * Estrae token da header Authorization, body o sessione
    * @param {object} req - Express request
    * @returns {string|null} - Token estratto o null
    */
   static extractToken(req) {
+    // Prima controlla se c'è un token nella sessione (per utenti loggati con GitHub OAuth)
+    if (req.session?.githubToken) {
+      try {
+        return GitHubOAuthService.decryptToken(req.session.githubToken);
+      } catch (error) {
+        // Se decriptazione fallisce, continua a cercare in altri posti
+      }
+    }
     // Prova header Authorization
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {

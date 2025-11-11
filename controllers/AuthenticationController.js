@@ -1,6 +1,11 @@
 // controller/AuthenticationController.js
 const Authentication = require("../Models/AuthenticationModel");
 const EmailService = require("../middlewares/EmailService/EmailService");
+const axios = require("axios");
+const crypto = require("crypto");
+const { URLSearchParams } = require("url");
+const GitHubOAuthService = require("../services/github/OAuthService");
+const TokenValidator = require("../services/github/TokenValidator");
 
 class AuthenticationController {
   static async register(req, res) {
@@ -67,20 +72,41 @@ class AuthenticationController {
 
   static logout(req, res) {
     try {
+      // Pulisci anche i dati GitHub dalla sessione se presenti
+      if (req.session) {
+        delete req.session.githubToken;
+        delete req.session.githubUser;
+        delete req.session.githubOAuthState;
+        delete req.session.githubOAuthRedirectUri;
+      }
+
       // Distruggi la sessione
       req.session.destroy((err) => {
         if (err) {
           console.error("Errore durante il logout:", err);
-          return res.status(500).json({ error: "Errore interno del server" });
+          return res.status(500).json({
+            error: "Errore interno del server",
+            message: "Impossibile completare il logout",
+          });
         }
-        // Se la sessione è stata distrutta con successo, restituisci uno stato 200 (OK)
-        return res
-          .status(200)
-          .json({ message: "Logout effettuato con successo" });
+
+        // Pulisci il cookie di sessione
+        res.clearCookie("connect.sid"); // Nome predefinito di express-session
+        res.clearCookie("sessionId"); // Se usi un nome personalizzato
+
+        // Restituisci risposta di successo
+        return res.status(200).json({
+          success: true,
+          message: "Logout effettuato con successo",
+          authenticated: false,
+        });
       });
     } catch (error) {
       console.error("Errore durante il logout:", error);
-      return res.status(500).json({ error: "Errore interno del server" });
+      return res.status(500).json({
+        error: "Errore interno del server",
+        message: "Impossibile completare il logout",
+      });
     }
   }
 
@@ -395,6 +421,369 @@ class AuthenticationController {
         error: "Errore interno del server",
         message: "Impossibile resettare la password. Riprova più tardi.",
       });
+    }
+  }
+
+  /**
+   * Inizia OAuth flow Google
+   * GET /authentication/GET/google-oauth
+   */
+  static async startGoogleOAuth(req, res) {
+    try {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+
+      if (!clientId) {
+        return res.status(500).json({
+          error: "Errore configurazione",
+          message:
+            "GOOGLE_CLIENT_ID non configurato nelle variabili d'ambiente",
+        });
+      }
+
+      // Verifica che la sessione sia disponibile
+      if (!req.session) {
+        return res.status(500).json({
+          error: "Errore sessione",
+          message: "Sessione non disponibile",
+        });
+      }
+
+      // Genera state CSRF random
+      const state = crypto.randomBytes(32).toString("hex");
+
+      // Salva state in sessione per validazione callback
+      req.session.oauth_state = state;
+      req.session.oauth_provider = "google";
+
+      // Costruisci URL OAuth Google
+      // IMPORTANTE: redirect_uri deve puntare al BACKEND, non al frontend
+      const backendUrl =
+        process.env.BACKEND_URL ||
+        process.env.API_URL ||
+        "http://localhost:3000";
+      const redirectUri = `${backendUrl}/API/v1/authentication/GET/google/callback`;
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        scope: "openid email profile",
+        state: state,
+        access_type: "offline",
+        prompt: "consent",
+      });
+
+      const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+      return res.status(200).json({
+        url: googleOAuthUrl, // Formato standard per frontend
+        oauthUrl: googleOAuthUrl, // Alias per compatibilità
+        state: state,
+        message: "Reindirizza l'utente all'URL OAuth fornito",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: "Errore interno del server",
+        message: error.message || "Impossibile inizializzare OAuth Google",
+        details:
+          process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  }
+
+  /**
+   * Inizia OAuth flow GitHub (per autenticazione utente)
+   * GET /authentication/GET/github-oauth
+   */
+  static async startGitHubOAuth(req, res) {
+    try {
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      if (!clientId) {
+        return res.status(500).json({
+          error: "Errore configurazione",
+          message:
+            "GITHUB_CLIENT_ID non configurato nelle variabili d'ambiente",
+        });
+      }
+
+      // Verifica che la sessione sia disponibile
+      if (!req.session) {
+        return res.status(500).json({
+          error: "Errore sessione",
+          message: "Sessione non disponibile",
+        });
+      }
+
+      // Genera state CSRF random
+      const state = crypto.randomBytes(32).toString("hex");
+
+      // Salva state in sessione per validazione callback
+      req.session.oauth_state = state;
+      req.session.oauth_provider = "github";
+
+      // Costruisci URL OAuth GitHub
+      // IMPORTANTE: redirect_uri deve puntare al BACKEND, non al frontend
+      const backendUrl =
+        process.env.BACKEND_URL ||
+        process.env.API_URL ||
+        "http://localhost:3000";
+      const redirectUri = `${backendUrl}/API/v1/authentication/GET/github/auth-callback`;
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        scope: "user:email repo workflow", // Scope per autenticazione + vault
+        state: state,
+      });
+
+      const githubOAuthUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+
+      return res.status(200).json({
+        url: githubOAuthUrl, // Formato standard per frontend
+        oauthUrl: githubOAuthUrl, // Alias per compatibilità
+        github_url: githubOAuthUrl, // Alias alternativo
+        state: state,
+        message: "Reindirizza l'utente all'URL OAuth fornito",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: "Errore interno del server",
+        message: "Impossibile inizializzare OAuth GitHub",
+      });
+    }
+  }
+
+  /**
+   * Callback OAuth Google
+   * GET /authentication/GET/google/callback
+   */
+  static async googleCallback(req, res) {
+    try {
+      const { code, state, error } = req.query;
+
+      // Valida errori da Google
+      if (error) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/?error=${error}`);
+      }
+
+      // Valida state CSRF
+      if (!state || state !== req.session.oauth_state) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/?error=invalid_state`);
+      }
+
+      // Scambia code con access token
+      // IMPORTANTE: redirect_uri deve essere lo stesso usato per generare l'URL OAuth
+      const backendUrl =
+        process.env.BACKEND_URL ||
+        process.env.API_URL ||
+        "http://localhost:3000";
+      const redirectUri = `${backendUrl}/API/v1/authentication/GET/google/callback`;
+
+      const tokenResponse = await axios.post(
+        "https://oauth2.googleapis.com/token",
+        {
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          code: code,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+        }
+      );
+
+      const { access_token, id_token } = tokenResponse.data;
+
+      // Recupera dati utente da Google
+      const userResponse = await axios.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        {
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+          },
+        }
+      );
+
+      const googleUser = userResponse.data;
+
+      // Trova o crea utente nel database
+      const user = await Authentication.findOrCreateOAuthUser({
+        provider: "google",
+        oauthId: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.given_name || "",
+        surname: googleUser.family_name || "",
+        accessToken: access_token,
+        isEmailVerified: googleUser.verified_email || false,
+      });
+
+      // Crea sessione autenticata
+      delete user.password; // Rimuovi password prima di salvare in sessione
+      req.session.account = user;
+
+      // Pulisci state OAuth dalla sessione
+      delete req.session.oauth_state;
+      delete req.session.oauth_provider;
+
+      // Salva la sessione prima di fare redirect
+      req.session.save((err) => {
+        if (err) {
+          // Errore salvataggio sessione
+        }
+      });
+
+      // Redirect HTTP al frontend (Google fa redirect del browser, non AJAX)
+      return res.redirect(
+        `${frontendUrl}/dashboard?oauth=success&provider=google`
+      );
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      return res.redirect(
+        `${frontendUrl}/?error=oauth_failed&message=${encodeURIComponent(
+          error.message || "Errore autenticazione"
+        )}`
+      );
+    }
+  }
+
+  /**
+   * Callback OAuth GitHub (per autenticazione utente)
+   * GET /authentication/GET/github/auth-callback
+   * IMPORTANTE: Salva anche le info GitHub nella sessione per usare con vault
+   */
+  static async githubCallback(req, res) {
+    try {
+      const { code, state, error } = req.query;
+
+      // Valida errori da GitHub
+      if (error) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/?error=${error}`);
+      }
+
+      // Valida state CSRF
+      if (!state || state !== req.session.oauth_state) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/?error=invalid_state`);
+      }
+
+      // Scambia code con access token
+      // IMPORTANTE: redirect_uri deve puntare al BACKEND, non al frontend
+      const backendUrl =
+        process.env.BACKEND_URL ||
+        process.env.API_URL ||
+        "http://localhost:3000";
+      const redirectUri = `${backendUrl}/API/v1/authentication/GET/github/auth-callback`;
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+      const tokenResponse = await axios.post(
+        "https://github.com/login/oauth/access_token",
+        {
+          client_id: process.env.GITHUB_CLIENT_ID,
+          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          code: code,
+          redirect_uri: redirectUri,
+        },
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const { access_token } = tokenResponse.data;
+
+      // Valida che il token abbia i permessi necessari per il vault (repo, workflow)
+      const tokenValidation = await TokenValidator.validateToken(
+        access_token,
+        true
+      );
+
+      if (!tokenValidation.valid) {
+        // Non blocchiamo il login, ma avvisiamo che il vault potrebbe non funzionare
+        // Il token verrà comunque salvato per permettere l'autenticazione
+      }
+
+      // Recupera dati utente da GitHub
+      const userResponse = await axios.get("https://api.github.com/user", {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+      });
+
+      const githubUser = userResponse.data;
+
+      // Recupera email (potrebbe essere privata)
+      let email = githubUser.email;
+      if (!email) {
+        const emailsResponse = await axios.get(
+          "https://api.github.com/user/emails",
+          {
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+            },
+          }
+        );
+        const primaryEmail = emailsResponse.data.find((e) => e.primary);
+        email = primaryEmail
+          ? primaryEmail.email
+          : emailsResponse.data[0]?.email;
+      }
+
+      // Trova o crea utente nel database
+      const nameParts = githubUser.name
+        ? githubUser.name.split(" ")
+        : [githubUser.login || ""];
+      const name = nameParts[0] || "";
+      const surname = nameParts.slice(1).join(" ") || "";
+
+      const user = await Authentication.findOrCreateOAuthUser({
+        provider: "github",
+        oauthId: githubUser.id.toString(),
+        email: email,
+        name: name,
+        surname: surname,
+        accessToken: access_token,
+        isEmailVerified: true, // GitHub verifica email
+      });
+
+      // IMPORTANTE: Salva anche le informazioni GitHub nella sessione per usare con vault
+      // Questo permette di usare automaticamente GitHub per i vault dopo il login
+      const encryptedToken = GitHubOAuthService.encryptToken(access_token);
+      req.session.githubToken = encryptedToken;
+      req.session.githubUser = {
+        login: githubUser.login,
+        id: githubUser.id,
+        avatar_url: githubUser.avatar_url,
+        email: email,
+      };
+
+      // Crea sessione autenticata
+      delete user.password; // Rimuovi password prima di salvare in sessione
+      req.session.account = user;
+
+      // Pulisci state OAuth dalla sessione
+      delete req.session.oauth_state;
+      delete req.session.oauth_provider;
+
+      // Salva la sessione prima di fare redirect
+      req.session.save((err) => {
+        if (err) {
+          // Errore salvataggio sessione
+        }
+      });
+
+      // Redirect HTTP al frontend (GitHub fa redirect del browser, non AJAX)
+      return res.redirect(
+        `${frontendUrl}/dashboard?oauth=success&provider=github`
+      );
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      return res.redirect(
+        `${frontendUrl}/?error=oauth_failed&message=${encodeURIComponent(
+          error.message || "Errore autenticazione"
+        )}`
+      );
     }
   }
 }

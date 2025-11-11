@@ -188,11 +188,13 @@ class AuthenticationModel {
       }
 
       // Verifica se la nuova password è uguale alla password attuale
-      const isSamePassword = bcrypt.compareSync(newPassword, user.password);
-      if (isSamePassword) {
-        throw new Error(
-          "La nuova password deve essere diversa dalla password attuale"
-        );
+      if (user.password) {
+        const isSamePassword = bcrypt.compareSync(newPassword, user.password);
+        if (isSamePassword) {
+          throw new Error(
+            "La nuova password deve essere diversa dalla password attuale"
+          );
+        }
       }
 
       // Hash della nuova password
@@ -221,6 +223,95 @@ class AuthenticationModel {
 
       return true;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Trova o crea utente OAuth
+   * @param {object} oauthData - Dati OAuth { provider, oauthId, email, name, surname, accessToken, isEmailVerified }
+   * @returns {Promise<object>} - Utente trovato o creato
+   */
+  static async findOrCreateOAuthUser(oauthData) {
+    try {
+      const {
+        provider,
+        oauthId,
+        email,
+        name,
+        surname,
+        accessToken,
+        isEmailVerified = false,
+      } = oauthData;
+
+      // Normalizza email
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      // Cerca utente esistente per oauth_provider + oauth_id
+      let user = await prisma.user.findFirst({
+        where: {
+          oauth_provider: provider,
+          oauth_id: oauthId.toString(),
+        },
+      });
+
+      if (user) {
+        // Aggiorna token se fornito
+        if (accessToken) {
+          user = await prisma.user.update({
+            where: {
+              user_id: user.user_id,
+            },
+            data: {
+              oauth_access_token: accessToken,
+              updated_at: new Date(),
+            },
+          });
+        }
+        return user;
+      }
+
+      // Cerca utente esistente per email (potrebbe essere registrato con email/password)
+      const existingUser = await prisma.user.findUnique({
+        where: {
+          email: normalizedEmail,
+        },
+      });
+
+      if (existingUser) {
+        // Collega account OAuth all'utente esistente
+        user = await prisma.user.update({
+          where: {
+            user_id: existingUser.user_id,
+          },
+          data: {
+            oauth_provider: provider,
+            oauth_id: oauthId.toString(),
+            oauth_access_token: accessToken || null,
+            is_email_verified: isEmailVerified || existingUser.is_email_verified,
+            updated_at: new Date(),
+          },
+        });
+        return user;
+      }
+
+      // Crea nuovo utente OAuth
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: name || "",
+          surname: surname || "",
+          password: null, // Utenti OAuth non hanno password
+          oauth_provider: provider,
+          oauth_id: oauthId.toString(),
+          oauth_access_token: accessToken || null,
+          is_email_verified: isEmailVerified,
+        },
+      });
+
+      return user;
+    } catch (error) {
+      console.error("AuthenticationModel.findOrCreateOAuthUser - Errore:", error);
       throw error;
     }
   }
