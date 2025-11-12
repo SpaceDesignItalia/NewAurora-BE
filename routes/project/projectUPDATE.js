@@ -35,6 +35,10 @@ const projectUPDATE = () => {
     }
   );
 
+  router.put("/update-project", authenticateMiddleware, (req, res) => {
+    ProjectController.update_project(req, res);
+  });
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

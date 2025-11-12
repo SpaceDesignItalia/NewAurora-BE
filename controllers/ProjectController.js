@@ -615,6 +615,19 @@ class ProjectController {
       });
     }
   }
+
+  static async update_project(req, res) {
+    try {
+      const project_data = req.body.project_data;
+      await Project.update_project(project_data);
+      res.status(200).json({
+        message: "Progetto aggiornato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del progetto:", error);
+      res.status(500).send("Aggiornamento del progetto fallito");
+    }
+  }
 }
 
 module.exports = ProjectController;

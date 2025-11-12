@@ -124,6 +124,7 @@ class ProjectModel {
           project_members: true,
           tasks: {
             include: {
+              task_priority: true,
               task_status: true,
             },
           },
@@ -763,6 +764,32 @@ class ProjectModel {
       }
 
       return decrypted_entries;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_project(project_data) {
+    try {
+      const startDate = new Date(project_data.start_date + "T00:00:00.000Z");
+      const endDate = new Date(project_data.end_date + "T23:59:59.999Z");
+      const project = prisma.$transaction(async (tx) => {
+        // Aggiorna il progetto
+        const updatedProject = await tx.project.update({
+          where: { project_id: parseInt(project_data.project_id) },
+          data: {
+            name: project_data.name,
+            description: project_data.description,
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+            project_status_id: parseInt(project_data.project_status_id),
+            updated_at: new Date(),
+          },
+        });
+        return updatedProject;
+      });
+
+      return project;
     } catch (error) {
       throw error;
     }
