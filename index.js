@@ -25,6 +25,8 @@ const credentials = {
 
 const app = express();
 app.use(express.static("public"));
+// Servi anche le immagini profilo dalla cartella uploads
+app.use("/uploads", express.static("uploads"));
 const PREFIX = "/API/v1";
 const PORT = 3000; // Porta standard per HTTPS
 

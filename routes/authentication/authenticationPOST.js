@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const AuthenticationController = require("../../controllers/AuthenticationController");
-const authenticateMiddleware = require("../../middlewares/Authentication/authmiddleware");
+const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
 
 const authenticationPOST = () => {
   // Definisci le route POST qui

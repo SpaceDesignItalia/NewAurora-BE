@@ -9,3 +9,7 @@ node_modules
 
 
 /generated/prisma
+
+# Uploads (mantieni la struttura ma ignora i file)
+uploads/profiles/*
+!uploads/profiles/.gitkeep

@@ -6,6 +6,10 @@ const crypto = require("crypto");
 const { URLSearchParams } = require("url");
 const GitHubOAuthService = require("../services/github/OAuthService");
 const TokenValidator = require("../services/github/TokenValidator");
+const {
+  downloadAndSaveAvatar,
+  isValidImageUrl,
+} = require("../services/avatar/DownloadAvatarService");
 
 class AuthenticationController {
   static async register(req, res) {
@@ -111,12 +115,88 @@ class AuthenticationController {
   }
 
   static async get_session_data(req, res) {
-    // Verifica se la sessione è stata creata
-    if (req.session.account) {
-      // Verifica se l'utente è autenticato
-      return res.status(200).json(req.session.account);
-    } else {
-      return res.status(401).json({ error: "Non autorizzato" });
+    try {
+      // Verifica se la sessione è stata creata
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({ error: "Non autorizzato" });
+      }
+
+      const userId = req.session.account.user_id;
+
+      // Recupera i dati aggiornati dal database per includere profile_image_url
+      const user = await Authentication.findUserById(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "Utente non trovato" });
+      }
+
+      // Rimuovi la password prima di restituire
+      delete user.password;
+
+      // Aggiorna la sessione con i dati aggiornati
+      req.session.account = user;
+
+      // Restituisci i dati dell'utente
+      return res.status(200).json(user);
+    } catch (error) {
+      console.error("Errore nel recupero dei dati sessione:", error);
+      // In caso di errore, restituisci comunque i dati dalla sessione
+      if (req.session && req.session.account) {
+        const account = { ...req.session.account };
+        delete account.password;
+        return res.status(200).json(account);
+      }
+      return res.status(500).json({ error: "Errore interno del server" });
+    }
+  }
+
+  /**
+   * Restituisce l'immagine del profilo utente
+   * GET /authentication/GET/profile-image/:userId
+   */
+  static async get_profile_image(req, res) {
+    try {
+      const userId = BigInt(req.params.userId);
+      const path = require("path");
+      const fs = require("fs");
+
+      // Recupera l'utente
+      const user = await Authentication.findUserById(userId);
+
+      if (!user || !user.profile_image_url) {
+        return res.status(404).json({ error: "Immagine non trovata" });
+      }
+
+      // Costruisci il path completo del file
+      const imagePath = user.profile_image_url.startsWith("/")
+        ? user.profile_image_url.substring(1)
+        : user.profile_image_url;
+
+      const fullPath = path.join(__dirname, "..", imagePath);
+
+      // Verifica che il file esista
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "File immagine non trovato" });
+      }
+
+      // Determina il Content-Type basato sull'estensione del file
+      const ext = path.extname(fullPath).toLowerCase();
+      const mimeTypes = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+      };
+      const contentType = mimeTypes[ext] || "image/jpeg";
+
+      // Invia il file con i header corretti
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache per 1 anno
+      res.sendFile(path.resolve(fullPath));
+    } catch (error) {
+      console.error("Errore nel recupero dell'immagine profilo:", error);
+      res.status(500).json({ error: "Errore interno del server" });
     }
   }
 
@@ -606,8 +686,8 @@ class AuthenticationController {
 
       const googleUser = userResponse.data;
 
-      // Trova o crea utente nel database
-      const user = await Authentication.findOrCreateOAuthUser({
+      // Trova o crea utente nel database (senza avatar per ora)
+      let user = await Authentication.findOrCreateOAuthUser({
         provider: "google",
         oauthId: googleUser.id,
         email: googleUser.email,
@@ -615,7 +695,36 @@ class AuthenticationController {
         surname: googleUser.family_name || "",
         accessToken: access_token,
         isEmailVerified: googleUser.verified_email || false,
+        profileImageUrl: null, // Lo aggiorneremo dopo
       });
+
+      // Download e salvataggio avatar dopo aver creato l'utente (per avere l'ID)
+      if (
+        googleUser.picture &&
+        isValidImageUrl(googleUser.picture) &&
+        !user.profile_image_url
+      ) {
+        try {
+          profileImageUrl = await downloadAndSaveAvatar(
+            googleUser.picture,
+            user.user_id
+          );
+
+          // Aggiorna l'utente con l'avatar
+          if (profileImageUrl) {
+            user = await Authentication.update_profile_image(
+              user.user_id,
+              profileImageUrl
+            );
+          }
+        } catch (avatarError) {
+          console.warn(
+            "Errore nel download avatar Google:",
+            avatarError.message
+          );
+          // Continua senza avatar
+        }
+      }
 
       // Crea sessione autenticata
       delete user.password; // Rimuovi password prima di salvare in sessione
@@ -737,7 +846,8 @@ class AuthenticationController {
       const name = nameParts[0] || "";
       const surname = nameParts.slice(1).join(" ") || "";
 
-      const user = await Authentication.findOrCreateOAuthUser({
+      // Trova o crea utente (senza avatar per ora)
+      let user = await Authentication.findOrCreateOAuthUser({
         provider: "github",
         oauthId: githubUser.id.toString(),
         email: email,
@@ -745,7 +855,36 @@ class AuthenticationController {
         surname: surname,
         accessToken: access_token,
         isEmailVerified: true, // GitHub verifica email
+        profileImageUrl: null, // Lo aggiorneremo dopo
       });
+
+      // Download e salvataggio avatar dopo aver creato l'utente (per avere l'ID)
+      if (
+        githubUser.avatar_url &&
+        isValidImageUrl(githubUser.avatar_url) &&
+        !user.profile_image_url
+      ) {
+        try {
+          const profileImageUrl = await downloadAndSaveAvatar(
+            githubUser.avatar_url,
+            user.user_id
+          );
+
+          // Aggiorna l'utente con l'avatar
+          if (profileImageUrl) {
+            user = await Authentication.update_profile_image(
+              user.user_id,
+              profileImageUrl
+            );
+          }
+        } catch (avatarError) {
+          console.warn(
+            "Errore nel download avatar GitHub:",
+            avatarError.message
+          );
+          // Continua senza avatar
+        }
+      }
 
       // IMPORTANTE: Salva anche le informazioni GitHub nella sessione per usare con vault
       // Questo permette di usare automaticamente GitHub per i vault dopo il login
@@ -784,6 +923,395 @@ class AuthenticationController {
           error.message || "Errore autenticazione"
         )}`
       );
+    }
+  }
+
+  /**
+   * Aggiorna il profilo utente (name, surname, email)
+   * PUT /authentication/UPDATE/update-profile
+   */
+  static async update_profile(req, res) {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({
+          error: "Non autorizzato",
+          message: "Devi essere autenticato per aggiornare il profilo",
+        });
+      }
+
+      const { name, surname, email } = req.body;
+      const userId = req.session.account.user_id;
+
+      // Normalizza i valori (gestisce stringhe vuote come undefined)
+      const normalizedName = name ? String(name).trim() : undefined;
+      const normalizedSurname = surname ? String(surname).trim() : undefined;
+      const normalizedEmail = email
+        ? String(email).trim().toLowerCase()
+        : undefined;
+
+      // Validazione input - verifica che almeno un campo sia fornito e non vuoto
+      if (!normalizedName && !normalizedSurname && !normalizedEmail) {
+        return res.status(400).json({
+          error: "Dati mancanti",
+          message: "Fornisci almeno un campo da aggiornare",
+        });
+      }
+
+      // Verifica se l'email è già in uso da un altro utente (solo se l'email è diversa da quella attuale)
+      if (normalizedEmail) {
+        const currentEmail = req.session.account.email?.toLowerCase();
+        // Solo se l'email è diversa da quella attuale, verifica se è già in uso
+        if (normalizedEmail !== currentEmail) {
+          const existingUser = await Authentication.findUserByEmail(
+            normalizedEmail
+          );
+          if (existingUser && existingUser.user_id !== userId) {
+            return res.status(400).json({
+              error: "Email già in uso",
+              message: "L'email inserita è già associata a un altro account",
+            });
+          }
+        }
+      }
+
+      const updatedUser = await Authentication.update_profile(userId, {
+        name: normalizedName,
+        surname: normalizedSurname,
+        email: normalizedEmail,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({
+          error: "Utente non trovato",
+          message: "Impossibile trovare l'utente da aggiornare",
+        });
+      }
+
+      // Aggiorna la sessione con i nuovi dati
+      delete updatedUser.password;
+      req.session.account = updatedUser;
+
+      res.status(200).json({
+        message: "Profilo aggiornato con successo",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del profilo:", error);
+      console.error("Stack trace:", error.stack);
+
+      // Se è un errore di Prisma (es. constraint violation), restituisci un messaggio più specifico
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          error: "Email già in uso",
+          message: "L'email inserita è già associata a un altro account",
+        });
+      }
+
+      res.status(500).json({
+        error: "Errore interno del server",
+        message:
+          error.message ||
+          "Impossibile aggiornare il profilo. Riprova più tardi.",
+      });
+    }
+  }
+
+  /**
+   * Cambia la password dell'utente autenticato
+   * PUT /authentication/UPDATE/change-password
+   */
+  static async change_password(req, res) {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({
+          error: "Non autorizzato",
+          message: "Devi essere autenticato per cambiare la password",
+        });
+      }
+
+      const { current_password, new_password } = req.body;
+      const userId = req.session.account.user_id;
+      const userEmail = req.session.account.email;
+
+      // Validazione input
+      if (!current_password || !new_password) {
+        return res.status(400).json({
+          error: "Dati mancanti",
+          message: "Password attuale e nuova password sono obbligatorie",
+        });
+      }
+
+      // Verifica lunghezza password
+      if (new_password.length < 8) {
+        return res.status(400).json({
+          error: "Password troppo corta",
+          message: "La nuova password deve essere di almeno 8 caratteri",
+        });
+      }
+
+      // Verifica la password attuale e cambia la password
+      const success = await Authentication.change_password(
+        userEmail,
+        current_password,
+        new_password
+      );
+
+      if (!success) {
+        return res.status(400).json({
+          error: "Password non valida",
+          message: "La password attuale non è corretta",
+        });
+      }
+
+      res.status(200).json({
+        message: "Password cambiata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nel cambio password:", error);
+
+      // Gestione errori specifici
+      if (
+        error.message?.includes("diversa dalla password attuale") ||
+        error.message?.toLowerCase().includes("stessa password") ||
+        error.message?.toLowerCase().includes("same password")
+      ) {
+        return res.status(400).json({
+          error: "Password identica",
+          message:
+            "La nuova password deve essere diversa dalla password attuale",
+        });
+      }
+
+      res.status(500).json({
+        error: "Errore interno del server",
+        message: "Impossibile cambiare la password. Riprova più tardi.",
+      });
+    }
+  }
+
+  /**
+   * Aggiorna le preferenze utente
+   * PUT /authentication/UPDATE/preferences
+   */
+  static async update_preferences(req, res) {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({
+          error: "Non autorizzato",
+          message: "Devi essere autenticato per aggiornare le preferenze",
+        });
+      }
+
+      const { language, timezone, notes } = req.body;
+      const userId = req.session.account.user_id;
+
+      // Aggiorna le preferenze
+      const success = await Authentication.update_preferences(userId, {
+        language: language || undefined,
+        timezone: timezone || undefined,
+        notes: notes || undefined,
+      });
+
+      if (!success) {
+        return res.status(404).json({
+          error: "Utente non trovato",
+          message: "Impossibile trovare l'utente da aggiornare",
+        });
+      }
+
+      res.status(200).json({
+        message: "Preferenze salvate con successo",
+      });
+    } catch (error) {
+      console.error("Errore nel salvataggio delle preferenze:", error);
+      res.status(500).json({
+        error: "Errore interno del server",
+        message: "Impossibile salvare le preferenze. Riprova più tardi.",
+      });
+    }
+  }
+
+  /**
+   * Aggiorna le preferenze di notifica
+   * PUT /authentication/UPDATE/notifications
+   */
+  static async update_notifications(req, res) {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({
+          error: "Non autorizzato",
+          message: "Devi essere autenticato per aggiornare le notifiche",
+        });
+      }
+
+      const { email, push, reminders } = req.body;
+      const userId = req.session.account.user_id;
+
+      // Aggiorna le notifiche
+      const success = await Authentication.update_notifications(userId, {
+        email: email !== undefined ? Boolean(email) : undefined,
+        push: push !== undefined ? Boolean(push) : undefined,
+        reminders: reminders !== undefined ? Boolean(reminders) : undefined,
+      });
+
+      if (!success) {
+        return res.status(404).json({
+          error: "Utente non trovato",
+          message: "Impossibile trovare l'utente da aggiornare",
+        });
+      }
+
+      res.status(200).json({
+        message: "Preferenze di notifica salvate con successo",
+      });
+    } catch (error) {
+      console.error("Errore nel salvataggio delle notifiche:", error);
+      res.status(500).json({
+        error: "Errore interno del server",
+        message: "Impossibile salvare le notifiche. Riprova più tardi.",
+      });
+    }
+  }
+
+  /**
+   * Carica o aggiorna l'immagine del profilo utente
+   * PUT /authentication/UPDATE/upload-profile-image
+   */
+  static async upload_profile_image(req, res) {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.session || !req.session.account) {
+        return res.status(401).json({
+          success: false,
+          message: "Autenticazione richiesta",
+          error: "UNAUTHORIZED",
+        });
+      }
+
+      // Verifica che il file sia stato caricato
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Nessun file caricato",
+          error: "NO_FILE",
+        });
+      }
+
+      const userId = req.session.account.user_id;
+      const imagePath = `/uploads/profiles/${req.file.filename}`;
+
+      // Recupera l'utente corrente per eliminare la vecchia immagine
+      const currentUser = await Authentication.findUserById(userId);
+      if (!currentUser) {
+        // Elimina il file appena caricato se l'utente non esiste
+        const fs = require("fs");
+        const path = require("path");
+        const filePath = path.join(
+          __dirname,
+          "../uploads/profiles",
+          req.file.filename
+        );
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
+        return res.status(404).json({
+          success: false,
+          message: "Utente non trovato",
+          error: "USER_NOT_FOUND",
+        });
+      }
+
+      // Elimina vecchia immagine se esiste
+      if (currentUser.profile_image_url) {
+        const fs = require("fs");
+        const path = require("path");
+        // Rimuovi il leading slash se presente per costruire il path corretto
+        const oldImagePath = currentUser.profile_image_url.startsWith("/")
+          ? currentUser.profile_image_url.substring(1)
+          : currentUser.profile_image_url;
+        const fullOldPath = path.join(__dirname, "..", oldImagePath);
+
+        if (fs.existsSync(fullOldPath)) {
+          try {
+            fs.unlinkSync(fullOldPath);
+          } catch (unlinkError) {
+            console.error(
+              "Errore nell'eliminazione della vecchia immagine:",
+              unlinkError
+            );
+            // Non blocchiamo il processo se l'eliminazione fallisce
+          }
+        }
+      }
+
+      // Aggiorna il database con il nuovo URL dell'immagine
+      const updatedUser = await Authentication.update_profile_image(
+        userId,
+        imagePath
+      );
+
+      if (!updatedUser) {
+        // Elimina il file se l'aggiornamento del database fallisce
+        const fs = require("fs");
+        const path = require("path");
+        const filePath = path.join(
+          __dirname,
+          "../uploads/profiles",
+          req.file.filename
+        );
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
+        return res.status(500).json({
+          success: false,
+          message: "Errore durante l'aggiornamento del profilo",
+          error: "DATABASE_ERROR",
+        });
+      }
+
+      // Aggiorna la sessione con i nuovi dati
+      delete updatedUser.password;
+      req.session.account = updatedUser;
+
+      res.status(200).json({
+        success: true,
+        message: "Immagine del profilo caricata con successo",
+        profile_image_url: imagePath,
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Errore nell'upload dell'immagine del profilo:", error);
+      console.error("Stack trace:", error.stack);
+
+      // Se c'è un file caricato ma si verifica un errore, eliminalo
+      if (req.file) {
+        const fs = require("fs");
+        const path = require("path");
+        const filePath = path.join(
+          __dirname,
+          "../uploads/profiles",
+          req.file.filename
+        );
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (unlinkError) {
+            console.error("Errore nell'eliminazione del file:", unlinkError);
+          }
+        }
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Errore durante il caricamento dell'immagine",
+        error: "INTERNAL_SERVER_ERROR",
+      });
     }
   }
 }

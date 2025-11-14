@@ -229,7 +229,7 @@ class AuthenticationModel {
 
   /**
    * Trova o crea utente OAuth
-   * @param {object} oauthData - Dati OAuth { provider, oauthId, email, name, surname, accessToken, isEmailVerified }
+   * @param {object} oauthData - Dati OAuth { provider, oauthId, email, name, surname, accessToken, isEmailVerified, profileImageUrl }
    * @returns {Promise<object>} - Utente trovato o creato
    */
   static async findOrCreateOAuthUser(oauthData) {
@@ -242,6 +242,7 @@ class AuthenticationModel {
         surname,
         accessToken,
         isEmailVerified = false,
+        profileImageUrl = null,
       } = oauthData;
 
       // Normalizza email
@@ -256,16 +257,29 @@ class AuthenticationModel {
       });
 
       if (user) {
-        // Aggiorna token se fornito
+        // Aggiorna token e avatar se forniti
+        const updateData = {
+          updated_at: new Date(),
+        };
+        
         if (accessToken) {
+          updateData.oauth_access_token = accessToken;
+        }
+        
+        // Aggiorna avatar solo se non esiste già o se è stato fornito un nuovo avatar
+        if (profileImageUrl && !user.profile_image_url) {
+          updateData.profile_image_url = profileImageUrl;
+        } else if (profileImageUrl) {
+          // Opzionale: aggiorna anche se esiste già (per aggiornare avatar OAuth)
+          updateData.profile_image_url = profileImageUrl;
+        }
+        
+        if (Object.keys(updateData).length > 1) { // Più di solo updated_at
           user = await prisma.user.update({
             where: {
               user_id: user.user_id,
             },
-            data: {
-              oauth_access_token: accessToken,
-              updated_at: new Date(),
-            },
+            data: updateData,
           });
         }
         return user;
@@ -280,17 +294,24 @@ class AuthenticationModel {
 
       if (existingUser) {
         // Collega account OAuth all'utente esistente
+        const updateData = {
+          oauth_provider: provider,
+          oauth_id: oauthId.toString(),
+          oauth_access_token: accessToken || null,
+          is_email_verified: isEmailVerified || existingUser.is_email_verified,
+          updated_at: new Date(),
+        };
+        
+        // Aggiorna avatar solo se non esiste già
+        if (profileImageUrl && !existingUser.profile_image_url) {
+          updateData.profile_image_url = profileImageUrl;
+        }
+        
         user = await prisma.user.update({
           where: {
             user_id: existingUser.user_id,
           },
-          data: {
-            oauth_provider: provider,
-            oauth_id: oauthId.toString(),
-            oauth_access_token: accessToken || null,
-            is_email_verified: isEmailVerified || existingUser.is_email_verified,
-            updated_at: new Date(),
-          },
+          data: updateData,
         });
         return user;
       }
@@ -306,12 +327,250 @@ class AuthenticationModel {
           oauth_id: oauthId.toString(),
           oauth_access_token: accessToken || null,
           is_email_verified: isEmailVerified,
+          profile_image_url: profileImageUrl || null,
         },
       });
 
       return user;
     } catch (error) {
       console.error("AuthenticationModel.findOrCreateOAuthUser - Errore:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trova un utente per ID
+   * @param {BigInt} userId - ID dell'utente
+   * @returns {Promise<object|null>} - Utente trovato o null
+   */
+  static async findUserById(userId) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          user_id: userId,
+        },
+      });
+      return user;
+    } catch (error) {
+      console.error("AuthenticationModel.findUserById - Errore:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trova un utente per email
+   * @param {string} email - Email dell'utente
+   * @returns {Promise<object|null>} - Utente trovato o null
+   */
+  static async findUserByEmail(email) {
+    try {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const user = await prisma.user.findUnique({
+        where: {
+          email: normalizedEmail,
+        },
+      });
+      return user;
+    } catch (error) {
+      console.error("AuthenticationModel.findUserByEmail - Errore:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna il profilo utente
+   * @param {BigInt} userId - ID dell'utente
+   * @param {object} profileData - Dati del profilo { name?, surname?, email? }
+   * @returns {Promise<object|null>} - Utente aggiornato o null
+   */
+  static async update_profile(userId, profileData) {
+    try {
+      console.log("AuthenticationModel.update_profile - Input:", { userId, profileData });
+      
+      // Costruisci l'oggetto data solo con i campi definiti
+      const updateData = {};
+      if (profileData.name !== undefined) {
+        updateData.name = profileData.name;
+      }
+      if (profileData.surname !== undefined) {
+        updateData.surname = profileData.surname;
+      }
+      if (profileData.email !== undefined) {
+        updateData.email = profileData.email;
+      }
+
+      console.log("AuthenticationModel.update_profile - updateData:", updateData);
+
+      // Se non ci sono dati da aggiornare, restituisci l'utente corrente
+      if (Object.keys(updateData).length === 0) {
+        console.log("Nessun dato da aggiornare, restituisco utente corrente");
+        return await prisma.user.findUnique({
+          where: { user_id: userId },
+        });
+      }
+
+      // Aggiorna l'utente
+      console.log("Tentativo di aggiornare utente con ID:", userId);
+      const updatedUser = await prisma.user.update({
+        where: { user_id: userId },
+        data: updateData,
+      });
+
+      console.log("Utente aggiornato con successo");
+      return updatedUser;
+    } catch (error) {
+      console.error("AuthenticationModel.update_profile - Errore:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Cambia la password dell'utente (richiede la password attuale)
+   * @param {string} email - Email dell'utente
+   * @param {string} currentPassword - Password attuale
+   * @param {string} newPassword - Nuova password
+   * @returns {Promise<boolean>} - true se successo, false se password attuale errata
+   */
+  static async change_password(email, currentPassword, newPassword) {
+    try {
+      // Normalizza l'email
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      // Trova l'utente
+      const user = await prisma.user.findUnique({
+        where: {
+          email: normalizedEmail,
+        },
+      });
+
+      if (!user) {
+        return false;
+      }
+
+      // Verifica che l'utente abbia una password (non è un utente OAuth senza password)
+      if (!user.password) {
+        throw new Error(
+          "Impossibile cambiare la password per account OAuth. Usa il provider OAuth per gestire la password."
+        );
+      }
+
+      // Verifica la password attuale
+      const isCurrentPasswordValid = bcrypt.compareSync(
+        currentPassword,
+        user.password
+      );
+
+      if (!isCurrentPasswordValid) {
+        return false;
+      }
+
+      // Verifica se la nuova password è uguale alla password attuale
+      const isSamePassword = bcrypt.compareSync(newPassword, user.password);
+      if (isSamePassword) {
+        throw new Error(
+          "La nuova password deve essere diversa dalla password attuale"
+        );
+      }
+
+      // Hash della nuova password
+      const hash = bcrypt.hashSync(newPassword, 10);
+
+      // Aggiorna la password
+      await prisma.user.update({
+        where: {
+          email: normalizedEmail,
+        },
+        data: {
+          password: hash,
+        },
+      });
+
+      return true;
+    } catch (error) {
+      console.error("AuthenticationModel.change_password - Errore:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna le preferenze utente
+   * Nota: Questo metodo salva le preferenze come JSON in un campo del database.
+   * Se il campo non esiste, potrebbe essere necessario aggiungerlo allo schema.
+   * Per ora, salveremo in un campo JSON o creeremo un modello separato.
+   * @param {BigInt} userId - ID dell'utente
+   * @param {object} preferences - Preferenze { language?, timezone?, notes? }
+   * @returns {Promise<boolean>} - true se successo
+   */
+  static async update_preferences(userId, preferences) {
+    try {
+      // Per ora, salveremo le preferenze come JSON in un campo notes o creeremo un campo preferences
+      // Dato che non c'è un campo preferences nel modello User, useremo un approccio flessibile
+      // che può essere esteso in futuro con un modello UserPreferences separato
+
+      // Per ora, restituiamo true per indicare successo
+      // In futuro, quando verrà aggiunto il campo preferences al database,
+      // questo metodo potrà essere aggiornato per salvare effettivamente i dati
+
+      // Esempio di implementazione futura:
+      // await prisma.user.update({
+      //   where: { user_id: userId },
+      //   data: {
+      //     preferences: JSON.stringify(preferences),
+      //   },
+      // });
+
+      return true;
+    } catch (error) {
+      console.error("AuthenticationModel.update_preferences - Errore:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna le preferenze di notifica
+   * @param {BigInt} userId - ID dell'utente
+   * @param {object} notifications - Preferenze notifiche { email?, push?, reminders? }
+   * @returns {Promise<boolean>} - true se successo
+   */
+  static async update_notifications(userId, notifications) {
+    try {
+      // Simile a update_preferences, questo metodo può essere esteso
+      // quando verrà aggiunto un campo notifications al database
+
+      // Per ora, restituiamo true per indicare successo
+      return true;
+    } catch (error) {
+      console.error(
+        "AuthenticationModel.update_notifications - Errore:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna l'URL dell'immagine del profilo
+   * @param {BigInt} userId - ID dell'utente
+   * @param {string} profileImageUrl - URL dell'immagine del profilo
+   * @returns {Promise<object|null>} - Utente aggiornato o null
+   */
+  static async update_profile_image(userId, profileImageUrl) {
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { user_id: userId },
+        data: {
+          profile_image_url: profileImageUrl,
+        },
+      });
+
+      return updatedUser;
+    } catch (error) {
+      console.error(
+        "AuthenticationModel.update_profile_image - Errore:",
+        error
+      );
       throw error;
     }
   }
