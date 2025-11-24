@@ -13,7 +13,21 @@ class ProjectController {
       });
     } catch (error) {
       console.error("Errore nella creazione del progetto:", error);
-      res.status(500).send("Creazione del progetto fallita");
+
+      // Fornisci messaggi di errore più specifici
+      if (
+        error.message.includes("non valido") ||
+        error.message.includes("non trovato")
+      ) {
+        res.status(400).json({
+          error: error.message,
+        });
+      } else {
+        res.status(500).json({
+          error: "Creazione del progetto fallita",
+          details: error.message,
+        });
+      }
     }
   }
 
@@ -171,10 +185,56 @@ class ProjectController {
     }
   }
 
-  static async get_feature_flags(req, res) {
+  static async get_all_feature_flags(req, res) {
     try {
-      console.log("Ricerca delle feature flags");
-      console.log(req);
+      const project_id = req.query.project_id;
+
+      let feature_flags = await Project.get_all_feature_flags(project_id);
+
+      if (feature_flags.length > 0) {
+        res.status(200).json({
+          message: "Feature flags trovati con successo",
+          feature_flags: feature_flags,
+        });
+      } else {
+        res.status(404).json({
+          message: "Nessuna feature flag trovata",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nella ricerca delle feature flags:", error);
+      res.status(500).send("Ricerca delle feature flags fallita");
+    }
+  }
+
+  static async get_all_feature_flag_groups(req, res) {
+    try {
+      const project_id = req.query.project_id;
+      let feature_flag_groups = await Project.get_all_feature_flag_groups(
+        project_id
+      );
+      res.status(200).json({
+        message: "Feature flag groups trovati con successo",
+        feature_flag_groups: feature_flag_groups,
+      });
+    } catch (error) {
+      console.error("Errore nella ricerca delle feature flag groups:", error);
+      res.status(500).send("Ricerca delle feature flag groups fallita");
+    }
+  }
+
+  static async get_feature_flag(req, res) {
+    try {
+      const project_unique_id = req.query.projectUniqueId;
+      const feature_flag_key = req.query.featureFlagKey;
+      let feature_flag = await Project.get_feature_flag(
+        project_unique_id,
+        feature_flag_key
+      );
+      res.status(200).json({
+        message: "Feature flag trovata con successo",
+        feature_flag: feature_flag,
+      });
     } catch (error) {
       console.error("Errore nella ricerca delle feature flags:", error);
       res.status(500).send("Ricerca delle feature flags fallita");
@@ -206,6 +266,67 @@ class ProjectController {
     } catch (error) {
       console.error("Errore nella creazione del sprint:", error);
       res.status(500).send("Creazione del sprint fallita");
+    }
+  }
+
+  static async create_feature_flag(req, res) {
+    try {
+      const feature_flag_data = req.body.feature_flag_data;
+      const user_id = req.session.account.user_id;
+      await Project.create_feature_flag(feature_flag_data, user_id);
+
+      res.status(200).json({
+        message: "Feature flag creata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella creazione della feature flag:", error);
+
+      // Fornisci messaggi di errore più specifici
+      if (error.message.includes("Esiste già una feature flag")) {
+        res.status(409).json({
+          error: error.message,
+        });
+      } else if (
+        error.message.includes("non valido") ||
+        error.message.includes("non trovato")
+      ) {
+        res.status(400).json({
+          error: error.message,
+        });
+      } else {
+        res.status(500).json({
+          error: "Creazione della feature flag fallita",
+          details: error.message,
+        });
+      }
+    }
+  }
+
+  static async create_feature_flag_group(req, res) {
+    try {
+      const feature_flag_group_data = req.body.feature_flag_group_data;
+      const user_id = req.session.account.user_id;
+      await Project.create_feature_flag_group(feature_flag_group_data, user_id);
+      res.status(200).json({
+        message: "Feature flag group creato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella creazione della feature flag group:", error);
+      res.status(500).send("Creazione della feature flag group fallita");
+    }
+  }
+
+  static async change_feature_flag_state(req, res) {
+    try {
+      const feature_flag_id = req.body.feature_flag_id;
+      const value = req.body.value;
+      await Project.change_feature_flag_state(feature_flag_id, value);
+      res.status(200).json({
+        message: "Feature flag abilitata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'abilitazione della feature flag:", error);
+      res.status(500).send("Abilitazione della feature flag fallita");
     }
   }
 
@@ -250,6 +371,60 @@ class ProjectController {
     }
   }
 
+  static async update_feature_flag(req, res) {
+    try {
+      const feature_flag_data = req.body.feature_flag_data;
+      const user_id = req.session.account.user_id;
+      console.log("Aggiornamento feature flag");
+      console.log(feature_flag_data);
+      await Project.update_feature_flag(feature_flag_data, user_id);
+      res.status(200).json({
+        message: "Feature flag aggiornata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento della feature flag:", error);
+      res.status(500).send("Aggiornamento della feature flag fallita");
+    }
+  }
+
+  static async update_feature_flag_group(req, res) {
+    try {
+      const feature_flag_group_data = req.body.feature_flag_group_data;
+      await Project.update_feature_flag_group(feature_flag_group_data);
+      res.status(200).json({
+        message: "Feature flag group aggiornata con successo",
+      });
+    } catch (error) {
+      console.error(
+        "Errore nell'aggiornamento della feature flag group:",
+        error
+      );
+      res.status(500).send("Aggiornamento della feature flag group fallita");
+    }
+  }
+
+  static async update_feature_flag_group_state(req, res) {
+    try {
+      const feature_flag_id = req.body.feature_flag_id;
+      const feature_flag_group_id = req.body.feature_flag_group_id;
+      await Project.update_feature_flag_group_state(
+        feature_flag_id,
+        feature_flag_group_id
+      );
+      res.status(200).json({
+        message: "Feature flag group stato cambiato con successo",
+      });
+    } catch (error) {
+      console.error(
+        "Errore nell'aggiornamento del stato della feature flag group:",
+        error
+      );
+      res
+        .status(500)
+        .send("Aggiornamento del stato della feature flag group fallita");
+    }
+  }
+
   static async delete_sprint(req, res) {
     try {
       const sprint_id = req.query.sprint_id;
@@ -273,6 +448,61 @@ class ProjectController {
     } catch (error) {
       console.error("Errore nell'eliminazione del task:", error);
       res.status(500).send("Eliminazione del task fallita");
+    }
+  }
+
+  static async delete_feature_flag_group(req, res) {
+    try {
+      const feature_flag_group_id = req.body.feature_flag_group_id;
+      await Project.delete_feature_flag_group(feature_flag_group_id);
+      res.status(200).json({
+        message: "Feature flag group eliminata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione della feature flag:", error);
+      res.status(500).send("Eliminazione della feature flag fallita");
+    }
+  }
+
+  static async delete_feature_flag(req, res) {
+    try {
+      const feature_flag_id = req.body.feature_flag_id;
+      await Project.delete_feature_flag(feature_flag_id);
+      res.status(200).json({
+        message: "Feature flag eliminata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione della feature flag:", error);
+      res.status(500).send("Eliminazione della feature flag fallita");
+    }
+  }
+
+  static async delete_feature_flag_target(req, res) {
+    try {
+      const feature_flag_target_id = req.body.feature_flag_target_id;
+      await Project.delete_feature_flag_target(feature_flag_target_id);
+      res.status(200).json({
+        message: "Feature flag target eliminato con successo",
+      });
+    } catch (error) {
+      console.error(
+        "Errore nell'eliminazione della feature flag target:",
+        error
+      );
+      res.status(500).send("Eliminazione della feature flag target fallita");
+    }
+  }
+
+  static async delete_feature_flag_rule(req, res) {
+    try {
+      const feature_flag_rule_id = req.body.feature_flag_rule_id;
+      await Project.delete_feature_flag_rule(feature_flag_rule_id);
+      res.status(200).json({
+        message: "Feature flag rule eliminato con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'eliminazione della feature flag rule:", error);
+      res.status(500).send("Eliminazione della feature flag rule fallita");
     }
   }
 }
