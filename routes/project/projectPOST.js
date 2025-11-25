@@ -18,6 +18,27 @@ const projectPOST = () => {
   router.post("/create-sprint", authenticateMiddleware, (req, res) => {
     ProjectController.create_sprint(req, res);
   });
+
+  router.post("/create-feature-flag", authenticateMiddleware, (req, res) => {
+    ProjectController.create_feature_flag(req, res);
+  });
+
+  router.post(
+    "/create-feature-flag-group",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.create_feature_flag_group(req, res);
+    }
+  );
+
+  router.post(
+    "/change-feature-flag-state",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.change_feature_flag_state(req, res);
+    }
+  );
+
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

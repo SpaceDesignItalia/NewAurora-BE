@@ -19,6 +19,29 @@ const projectUPDATE = () => {
     ProjectController.complete_sprint(req, res);
   });
 
+  router.put("/update-feature-flag", authenticateMiddleware, (req, res) => {
+    ProjectController.update_feature_flag(req, res);
+  });
+
+  router.put("/update-targeting-rule", authenticateMiddleware, (req, res) => {
+    ProjectController.update_targeting_rule(req, res);
+  });
+
+  router.put(
+    "/update-feature-flag-group",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.update_feature_flag_group(req, res);
+    }
+  );
+
+  router.put(
+    "/update-feature-flag-group-state",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.update_feature_flag_group_state(req, res);
+    }
+  );
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };
 

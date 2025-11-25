@@ -5,19 +5,51 @@ const prisma = new PrismaClient();
 class ProjectModel {
   static async create_project(project_data, user_id) {
     try {
-      const project_data_to_create = {
-        name: project_data.name,
-        description: project_data.description,
-        start_date: project_data.startDate
-          ? new Date(project_data.startDate)
-          : null,
-        end_date: project_data.endDate ? new Date(project_data.endDate) : null,
-        project_status_id: parseInt(project_data.projectStatus),
-        created_by_id: parseInt(user_id),
-      };
+      // Converti e valida project_status_id
+      const project_status_id = parseInt(project_data.projectStatus);
+      if (isNaN(project_status_id)) {
+        throw new Error("project_status_id non valido");
+      }
+
+      // Converti e valida created_by_id
+      const created_by_id = parseInt(user_id);
+      if (isNaN(created_by_id)) {
+        throw new Error("created_by_id non valido");
+      }
 
       const project = await prisma.$transaction(async (tx) => {
+        // Verifica che il project_status esista
+        const projectStatus = await tx.project_Status.findUnique({
+          where: { project_status_id: BigInt(project_status_id) },
+        });
+        if (!projectStatus) {
+          throw new Error(
+            `Project status con ID ${project_status_id} non trovato`
+          );
+        }
+
+        // Verifica che l'utente esista
+        const user = await tx.user.findUnique({
+          where: { user_id: BigInt(created_by_id) },
+        });
+        if (!user) {
+          throw new Error(`Utente con ID ${created_by_id} non trovato`);
+        }
+
         // Crea il progetto
+        const project_data_to_create = {
+          name: project_data.name,
+          description: project_data.description,
+          start_date: project_data.startDate
+            ? new Date(project_data.startDate)
+            : null,
+          end_date: project_data.endDate
+            ? new Date(project_data.endDate)
+            : null,
+          project_status_id: BigInt(project_status_id),
+          created_by_id: BigInt(created_by_id),
+        };
+
         const newProject = await tx.project.create({
           data: project_data_to_create,
         });
@@ -226,6 +258,77 @@ class ProjectModel {
     }
   }
 
+  static async get_all_feature_flags(project_id) {
+    try {
+      const project = await prisma.project.findUnique({
+        where: { unique_id: project_id },
+      });
+      if (!project) {
+        throw new Error("Progetto non trovato");
+      }
+
+      const feature_flags = await prisma.feature_Flag.findMany({
+        where: { project_id: project.project_id },
+        include: {
+          targets: true,
+        },
+        orderBy: {
+          feature_flag_id: "desc",
+        },
+      });
+      return feature_flags;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_all_feature_flag_groups(project_id) {
+    try {
+      const project = await prisma.project.findUnique({
+        where: { unique_id: project_id },
+      });
+      if (!project) {
+        throw new Error("Progetto non trovato");
+      }
+
+      const feature_flag_groups = await prisma.feature_Flag_Group.findMany({
+        where: { project_id: project.project_id },
+      });
+      return feature_flag_groups;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async get_feature_flag(project_unique_id, feature_flag_key) {
+    try {
+      console.log(project_unique_id, feature_flag_key);
+      const project = await prisma.project.findUnique({
+        where: { unique_id: project_unique_id },
+      });
+      if (!project) {
+        throw new Error("Progetto non trovato");
+      }
+
+      const feature_flag = await prisma.feature_Flag.findFirst({
+        where: { key: feature_flag_key, project_id: project.project_id },
+        include: {
+          targets: true,
+          feature_flag_rules: true,
+        },
+      });
+
+      if (!feature_flag) {
+        throw new Error("Feature flag non trovata");
+      }
+
+      console.log(feature_flag);
+      return feature_flag;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   static async create_task(task_data, user_id) {
     try {
       const task_data_to_create = {
@@ -276,6 +379,186 @@ class ProjectModel {
         return newSprint;
       });
       return sprint;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async create_feature_flag(feature_flag_data, user_id) {
+    try {
+      // Converti e valida created_by_id
+      const created_by_id = parseInt(user_id);
+      if (isNaN(created_by_id)) {
+        throw new Error("created_by_id non valido");
+      }
+
+      const feature_flag = await prisma.$transaction(async (tx) => {
+        // Verifica che l'utente esista
+        const user = await tx.user.findUnique({
+          where: { user_id: BigInt(created_by_id) },
+        });
+        if (!user) {
+          throw new Error(`Utente con ID ${created_by_id} non trovato`);
+        }
+
+        // Verifica che il progetto esista
+        const project = await tx.project.findUnique({
+          where: { unique_id: feature_flag_data.project_id },
+        });
+        if (!project) {
+          throw new Error(
+            `Progetto con ID ${feature_flag_data.project_id} non trovato`
+          );
+        }
+
+        if (feature_flag_data.feature_flag_group_id !== null) {
+          const group = await tx.feature_Flag_Group.findUnique({
+            where: {
+              feature_flag_group_id: feature_flag_data.feature_flag_group_id,
+            },
+          });
+          if (!group) {
+            throw new Error(
+              `Feature flag group con ID ${feature_flag_data.feature_flag_group_id} non trovata`
+            );
+          }
+        }
+
+        // Verifica che non esista già una feature flag con la stessa chiave o nome nello stesso progetto
+        const existingFeatureFlag = await tx.feature_Flag.findFirst({
+          where: {
+            project_id: project.project_id,
+            OR: [
+              { key: feature_flag_data.key },
+              { name: feature_flag_data.name },
+            ],
+          },
+        });
+        if (existingFeatureFlag) {
+          const duplicateField =
+            existingFeatureFlag.key === feature_flag_data.key
+              ? `chiave "${feature_flag_data.key}"`
+              : `nome "${feature_flag_data.name}"`;
+          throw new Error(
+            `Esiste già una feature flag con ${duplicateField} in questo progetto`
+          );
+        }
+
+        // Crea la feature flag
+
+        const feature_flag_data_to_create = {
+          name: feature_flag_data.name,
+          key: feature_flag_data.key,
+          description: feature_flag_data.description || null,
+          default_value: feature_flag_data.default_value ?? true,
+          enabled: feature_flag_data.enabled ?? true,
+          created_by_id: BigInt(created_by_id),
+          project_id: project.project_id,
+          feature_flag_group_id: feature_flag_data.feature_flag_group_id
+            ? BigInt(feature_flag_data.feature_flag_group_id)
+            : null,
+        };
+
+        const newFeatureFlag = await tx.feature_Flag.create({
+          data: feature_flag_data_to_create,
+        });
+
+        if (feature_flag_data.targeting.length > 0) {
+          for (const targeting of feature_flag_data.targeting) {
+            const targeting_data_to_create = {
+              name: targeting.name,
+              type: targeting.type,
+              operator: targeting.operator,
+              value: targeting.value,
+              enabled: targeting.enabled ?? true,
+              feature_flag_id: newFeatureFlag.feature_flag_id,
+              created_by_id: BigInt(created_by_id),
+            };
+
+            await tx.feature_Flag_Target.create({
+              data: targeting_data_to_create,
+            });
+          }
+        }
+
+        if (feature_flag_data.rules.length > 0) {
+          for (const rule of feature_flag_data.rules) {
+            const rule_data_to_create = {
+              field: rule.field,
+              operator: rule.operator,
+              value: rule.value,
+              feature_flag_id: newFeatureFlag.feature_flag_id,
+              created_by_id: BigInt(created_by_id),
+            };
+
+            await tx.feature_Flag_Rule.create({
+              data: rule_data_to_create,
+            });
+          }
+        }
+
+        console.log(
+          "Feature Flag (" + newFeatureFlag.key + ") creato con successo"
+        );
+        return newFeatureFlag;
+      });
+
+      return feature_flag;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async create_feature_flag_group(feature_flag_group_data, user_id) {
+    try {
+      const created_by_id = parseInt(user_id);
+      if (isNaN(created_by_id)) {
+        throw new Error("created_by_id non valido");
+      }
+
+      const feature_flag_group = await prisma.$transaction(async (tx) => {
+        // Verifica che l'utente esista
+        const user = await tx.user.findUnique({
+          where: { user_id: BigInt(created_by_id) },
+        });
+        if (!user) {
+          throw new Error(`Utente con ID ${created_by_id} non trovato`);
+        }
+
+        // Verifica che il progetto esista
+        const project = await tx.project.findUnique({
+          where: { unique_id: feature_flag_group_data.project_id },
+        });
+        if (!project) {
+          throw new Error(
+            `Progetto con ID ${feature_flag_group_data.project_id} non trovato`
+          );
+        }
+
+        const feature_flag_group_data_to_create = {
+          name: feature_flag_group_data.name,
+          description: feature_flag_group_data.description,
+          project_id: project.project_id,
+          created_by_id: BigInt(user.user_id),
+        };
+
+        const newFeatureFlagGroup = await tx.feature_Flag_Group.create({
+          data: feature_flag_group_data_to_create,
+        });
+
+        return newFeatureFlagGroup;
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async change_feature_flag_state(feature_flag_id, value) {
+    try {
+      await prisma.feature_Flag.update({
+        where: { feature_flag_id: parseInt(feature_flag_id) },
+        data: { enabled: value },
+      });
     } catch (error) {
       throw error;
     }
@@ -355,6 +638,182 @@ class ProjectModel {
     }
   }
 
+  static async update_feature_flag(feature_flag_data, user_id) {
+    try {
+      const created_by_id = parseInt(user_id);
+      if (isNaN(created_by_id)) {
+        throw new Error("created_by_id non valido");
+      }
+
+      console.log(feature_flag_data);
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Verifica che la feature flag esista
+        const feature_flag = await tx.feature_Flag.findUnique({
+          where: {
+            feature_flag_id: parseInt(feature_flag_data.feature_flag_id),
+          },
+        });
+        if (!feature_flag) {
+          throw new Error(
+            `Feature flag con ID ${feature_flag_data.id} non trovata`
+          );
+        }
+
+        // Verifica che il progetto esista
+        const project = await tx.project.findUnique({
+          where: { project_id: feature_flag.project_id },
+        });
+        if (!project) {
+          throw new Error(
+            `Progetto con ID ${feature_flag_data.project_id} non trovato`
+          );
+        }
+
+        // Aggiorna la feature flag
+        const updatedFeatureFlag = await tx.feature_Flag.update({
+          where: { feature_flag_id: parseInt(feature_flag.feature_flag_id) },
+          data: {
+            name: feature_flag_data.name,
+            key: feature_flag_data.key,
+            description: feature_flag_data.description,
+            default_value: feature_flag_data.default_value,
+            enabled: feature_flag_data.enabled,
+          },
+        });
+
+        if (
+          feature_flag_data.targeting &&
+          feature_flag_data.targeting.length > 0
+        ) {
+          for (const targeting of feature_flag_data.targeting) {
+            const target_id = targeting.target_id || targeting.id;
+
+            if (target_id) {
+              // Aggiorna il targeting esistente
+              await tx.feature_Flag_Target.update({
+                where: { target_id: parseInt(target_id) },
+                data: {
+                  name: targeting.name,
+                  type: targeting.type,
+                  operator: targeting.operator,
+                  value: targeting.value,
+                  enabled: targeting.enabled,
+                  updated_at: new Date(),
+                },
+              });
+            } else {
+              // Crea un nuovo targeting
+              const targeting_data_to_create = {
+                name: targeting.name,
+                type: targeting.type,
+                operator: targeting.operator,
+                value: targeting.value,
+                enabled: targeting.enabled,
+                feature_flag_id: updatedFeatureFlag.feature_flag_id,
+                created_by_id: BigInt(created_by_id),
+              };
+
+              await tx.feature_Flag_Target.create({
+                data: targeting_data_to_create,
+              });
+            }
+          }
+        }
+
+        if (feature_flag_data.rules && feature_flag_data.rules.length > 0) {
+          for (const rule of feature_flag_data.rules) {
+            const rule_id =
+              rule.feature_flag_rule_id || rule.rule_id || rule.id;
+
+            if (rule_id) {
+              // Aggiorna la rule esistente
+              await tx.feature_Flag_Rule.update({
+                where: { feature_flag_rule_id: parseInt(rule_id) },
+                data: {
+                  field: rule.field,
+                  operator: rule.operator,
+                  value: rule.value,
+                  updated_at: new Date(),
+                },
+              });
+            } else {
+              // Crea una nuova rule
+              const rule_data_to_create = {
+                field: rule.field,
+                operator: rule.operator,
+                value: rule.value,
+                feature_flag_id: updatedFeatureFlag.feature_flag_id,
+                created_by_id: BigInt(created_by_id),
+              };
+
+              await tx.feature_Flag_Rule.create({
+                data: rule_data_to_create,
+              });
+            }
+          }
+        }
+
+        return updatedFeatureFlag;
+      });
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_targeting_rule(target_id, value) {
+    try {
+      await prisma.feature_Flag_Target.update({
+        where: {
+          target_id: parseInt(target_id),
+        },
+        data: {
+          enabled: value,
+        },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_feature_flag_group(feature_flag_group_data) {
+    try {
+      await prisma.feature_Flag_Group.update({
+        where: {
+          feature_flag_group_id: parseInt(
+            feature_flag_group_data.feature_flag_group_id
+          ),
+        },
+        data: {
+          name: feature_flag_group_data.name,
+          description: feature_flag_group_data.description,
+          updated_at: new Date(),
+        },
+      });
+      return {
+        message: "Feature flag group aggiornata con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_feature_flag_group_state(
+    feature_flag_id,
+    feature_flag_group_id
+  ) {
+    try {
+      await prisma.feature_Flag.update({
+        where: { feature_flag_id: parseInt(feature_flag_id) },
+        data: { feature_flag_group_id: parseInt(feature_flag_group_id) },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
   static async delete_sprint(sprint_id) {
     try {
       await prisma.sprint.delete({
@@ -376,6 +835,68 @@ class ProjectModel {
       return {
         message: "Task eliminato con successo",
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete_feature_flag_group(feature_flag_group_id) {
+    try {
+      const feature_flag_in_group = await prisma.feature_Flag.findMany({
+        where: { feature_flag_group_id: parseInt(feature_flag_group_id) },
+      });
+
+      for (const feature_flag of feature_flag_in_group) {
+        await prisma.feature_Flag.update({
+          where: { feature_flag_id: feature_flag.feature_flag_id },
+          data: {
+            feature_flag_group_id: null,
+          },
+        });
+      }
+
+      await prisma.feature_Flag_Group.delete({
+        where: { feature_flag_group_id: parseInt(feature_flag_group_id) },
+      });
+      return {
+        message: "Feature flag group eliminata con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete_feature_flag(feature_flag_id) {
+    try {
+      await prisma.feature_Flag.delete({
+        where: { feature_flag_id: parseInt(feature_flag_id) },
+      });
+      return {
+        message: "Feature flag eliminata con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete_feature_flag_target(feature_flag_target_id) {
+    try {
+      await prisma.feature_Flag_Target.delete({
+        where: { target_id: parseInt(feature_flag_target_id) },
+      });
+      return {
+        message: "Feature flag target eliminato con successo",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete_feature_flag_rule(feature_flag_rule_id) {
+    try {
+      await prisma.feature_Flag_Rule.delete({
+        where: { feature_flag_rule_id: parseInt(feature_flag_rule_id) },
+      });
     } catch (error) {
       throw error;
     }

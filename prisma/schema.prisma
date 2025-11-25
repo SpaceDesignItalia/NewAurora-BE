@@ -21,6 +21,11 @@ model User {
   tasks           Task[]
   sprints         Sprint[]
   password_resets PasswordReset[]
+  feature_flags   Feature_Flag[]
+  feature_flag_groups Feature_Flag_Group[]
+  password_resets PasswordReset[]
+  feature_flag_targets Feature_Flag_Target[]
+  feature_flag_rules Feature_Flag_Rule[]
 }
 
 model PasswordReset {
@@ -39,7 +44,7 @@ model Project_Status {
   name              String
   color             String?
   created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  updated_at        DateTime  @default(now())  @updatedAt
   projects          Project[]
 }
 
@@ -60,6 +65,8 @@ model Project {
   task_statuses     Task_Status[]
   sprints           Sprint[]
   tasks             Task[]
+  feature_flags     Feature_Flag[]
+  feature_flag_groups Feature_Flag_Group[]
 }
 
 model Project_Member {
@@ -127,4 +134,65 @@ model Task {
   sprint            Sprint?       @relation(fields: [sprint_id], references: [sprint_id])
   project           Project       @relation(fields: [project_id], references: [project_id])
   created_by        User          @relation(fields: [created_by_id], references: [user_id])
+}
+
+
+model Feature_Flag {
+  feature_flag_id BigInt    @id @default(autoincrement())
+  name            String
+  key             String
+  description     String?
+  default_value   Boolean
+  project_id      BigInt
+  feature_flag_group_id BigInt?
+  enabled         Boolean   @default(true)
+  targets         Feature_Flag_Target[]
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  created_by_id   BigInt
+  created_by      User      @relation(fields: [created_by_id], references: [user_id])
+  project         Project   @relation(fields: [project_id], references: [project_id])
+  feature_flag_group Feature_Flag_Group? @relation(fields: [feature_flag_group_id], references: [feature_flag_group_id])
+  feature_flag_rules Feature_Flag_Rule[]
+}
+
+model Feature_Flag_Group {
+  feature_flag_group_id BigInt    @id @default(autoincrement())
+  name                  String
+  description           String?
+  project_id            BigInt
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  created_by_id         BigInt
+  created_by            User      @relation(fields: [created_by_id], references: [user_id])
+  project               Project   @relation(fields: [project_id], references: [project_id])
+  feature_flags         Feature_Flag[]
+}
+
+model Feature_Flag_Target {
+  target_id BigInt    @id @default(autoincrement())
+  name      String
+  type      String
+  operator  String
+  value     String
+  enabled   Boolean   @default(true)
+  feature_flag_id BigInt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  created_by_id BigInt
+  created_by User @relation(fields: [created_by_id], references: [user_id], onDelete: Cascade)
+  feature_flag Feature_Flag @relation(fields: [feature_flag_id], references: [feature_flag_id], onDelete: Cascade)
+}
+
+model Feature_Flag_Rule {
+  feature_flag_rule_id BigInt    @id @default(autoincrement())
+  field String
+  operator String
+  value String
+  feature_flag_id BigInt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  created_by_id BigInt
+  created_by User @relation(fields: [created_by_id], references: [user_id], onDelete: Cascade)
+  feature_flag Feature_Flag @relation(fields: [feature_flag_id], references: [feature_flag_id], onDelete: Cascade)
 }
