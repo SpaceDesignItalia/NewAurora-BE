@@ -10,3 +10,7 @@ node_modules
 
 /generated/prisma
 /prisma/migrations
+
+# Uploads (mantieni la struttura ma ignora i file)
+uploads/profiles/*
+!uploads/profiles/.gitkeep

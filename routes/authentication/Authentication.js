@@ -3,10 +3,12 @@ const express = require("express");
 const router = express.Router();
 const authenticationGET = require("./authenticationGET");
 const authenticationPOST = require("./authenticationPOST");
+const authenticationUPDATE = require("./authenticationUPDATE");
 
 const Authentication = () => {
   router.use("/GET", authenticationGET()); // Non serve più passare il database
   router.use("/POST", authenticationPOST()); // Non serve più passare il database
+  router.use("/UPDATE", authenticationUPDATE()); // Route per aggiornamenti
   return router;
 };
 

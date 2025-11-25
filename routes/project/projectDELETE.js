@@ -1,7 +1,7 @@
 // projectDELETE.js
 const express = require("express");
 const router = express.Router();
-const ProjectController = require("../../controllers/ProjectController");
+const ProjectController = require("../../Controllers/ProjectController");
 const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
 
 const projectDELETE = () => {
@@ -43,6 +43,14 @@ const projectDELETE = () => {
     authenticateMiddleware,
     (req, res) => {
       ProjectController.delete_feature_flag_rule(req, res);
+    }
+  );
+
+  router.delete(
+    "/:project_id/vault/:vault_id",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.delete_vault_entry(req, res);
     }
   );
 

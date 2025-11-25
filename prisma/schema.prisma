@@ -9,26 +9,34 @@ datasource db {
 }
 
 model User {
-  user_id         BigInt           @id @default(autoincrement())
-  name            String
-  surname         String
-  email           String           @unique
-  password        String
-  created_at      DateTime         @default(now())
-  updated_at      DateTime         @updatedAt
-  projects        Project[]
-  project_members Project_Member[]
-  tasks           Task[]
-  sprints         Sprint[]
-  password_resets PasswordReset[]
+  user_id            BigInt           @id @default(autoincrement())
+  name               String
+  surname            String
+  email              String           @unique
+  password           String? // Nullable per utenti OAuth
+  oauth_provider     String? // 'google' o 'github'
+  oauth_id           String? // ID univoco del provider OAuth
+  oauth_access_token String? // Token di accesso (opzionale)
+  is_email_verified  Boolean          @default(false)
+  profile_image_url  String? // URL dell'immagine del profilo
+  created_at         DateTime         @default(now())
+  updated_at         DateTime         @updatedAt
+  projects           Project[]
+  project_members    Project_Member[]
+  tasks              Task[]
+  sprints            Sprint[]
+  password_resets    Password_Reset[]
+  task_statuses      Task_Status[]
+
+  @@index([oauth_provider, oauth_id], name: "idx_users_oauth")
+  @@index([email, oauth_provider], name: "idx_users_email_oauth")
   feature_flags   Feature_Flag[]
   feature_flag_groups Feature_Flag_Group[]
-  password_resets PasswordReset[]
   feature_flag_targets Feature_Flag_Target[]
   feature_flag_rules Feature_Flag_Rule[]
 }
 
-model PasswordReset {
+model Password_Reset {
   password_reset_id BigInt   @id @default(autoincrement())
   email             String
   otp               String
@@ -67,6 +75,31 @@ model Project {
   tasks             Task[]
   feature_flags     Feature_Flag[]
   feature_flag_groups Feature_Flag_Group[]
+  vault_entries     Vault[]
+}
+
+model Vault {
+  vault_id     BigInt          @id @default(autoincrement())
+  project_id   BigInt
+  key          String
+  value        String
+  is_sensitive Boolean         @default(false)
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+  project      Project         @relation(fields: [project_id], references: [project_id])
+  history      Vault_History[]
+
+  @@unique([project_id, key])
+}
+
+model Vault_History {
+  vault_history_id BigInt   @id @default(autoincrement())
+  vault_id         BigInt
+  key              String
+  value            String
+  is_sensitive     Boolean  @default(false)
+  changed_at       DateTime @default(now())
+  vault            Vault    @relation(fields: [vault_id], references: [vault_id])
 }
 
 model Project_Member {
@@ -80,33 +113,35 @@ model Project_Member {
 }
 
 model Task_Status {
-  task_status_id BigInt    @id @default(autoincrement())
-  name           String 
-  color          String? @default("#000000")
+  task_status_id BigInt   @id @default(autoincrement())
+  name           String
+  color          String?  @default("#000000")
   project_id     BigInt
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  created_by_id  BigInt   @default(1)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
   tasks          Task[]
-  project        Project   @relation(fields: [project_id], references: [project_id])
+  project        Project  @relation(fields: [project_id], references: [project_id])
+  created_by     User     @relation(fields: [created_by_id], references: [user_id])
 }
 
 model Task_Priority {
-  task_priority_id BigInt    @id @default(autoincrement())
+  task_priority_id BigInt   @id @default(autoincrement())
   name             String
-  color            String? @default("#000000")
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  color            String?  @default("#000000")
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
   tasks            Task[]
 }
 
 model Sprint {
-  sprint_id    BigInt    @id @default(autoincrement())
-  name         String
-  description  String?
-  start_date   DateTime
-  end_date     DateTime
-  is_active    Boolean   @default(false)
-  is_completed Boolean   @default(false)
+  sprint_id     BigInt    @id @default(autoincrement())
+  name          String
+  description   String?
+  start_date    DateTime
+  end_date      DateTime
+  is_active     Boolean   @default(false)
+  is_completed  Boolean   @default(false)
   project_id    BigInt
   created_by_id BigInt
   created_at    DateTime  @default(now())
@@ -118,22 +153,22 @@ model Sprint {
 }
 
 model Task {
-  task_id           BigInt        @id @default(autoincrement())
-  title             String
-  description       String
-  task_status_id    BigInt
-  task_priority_id  BigInt
-  story_points      Int?
-  sprint_id         BigInt?
-  project_id        BigInt
-  created_by_id     BigInt
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
-  task_status       Task_Status   @relation(fields: [task_status_id], references: [task_status_id])
-  task_priority     Task_Priority @relation(fields: [task_priority_id], references: [task_priority_id])
-  sprint            Sprint?       @relation(fields: [sprint_id], references: [sprint_id])
-  project           Project       @relation(fields: [project_id], references: [project_id])
-  created_by        User          @relation(fields: [created_by_id], references: [user_id])
+  task_id          BigInt        @id @default(autoincrement())
+  title            String
+  description      String
+  task_status_id   BigInt
+  task_priority_id BigInt
+  story_points     Int?
+  sprint_id        BigInt?
+  project_id       BigInt
+  created_by_id    BigInt
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+  task_status      Task_Status   @relation(fields: [task_status_id], references: [task_status_id])
+  task_priority    Task_Priority @relation(fields: [task_priority_id], references: [task_priority_id])
+  sprint           Sprint?       @relation(fields: [sprint_id], references: [sprint_id])
+  project          Project       @relation(fields: [project_id], references: [project_id])
+  created_by       User          @relation(fields: [created_by_id], references: [user_id])
 }
 
 

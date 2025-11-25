@@ -1,7 +1,7 @@
 // projectGET.js
 const express = require("express");
 const router = express.Router();
-const ProjectController = require("../../controllers/ProjectController");
+const ProjectController = require("../../Controllers/ProjectController");
 const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
 
 const projectGET = () => {
@@ -74,6 +74,31 @@ const projectGET = () => {
   router.get("/get-feature-flag", (req, res) => {
     ProjectController.get_feature_flag(req, res);
   });
+
+  router.get("/get-sprint-by-id", authenticateMiddleware, (req, res) => {
+    ProjectController.get_sprint_by_id(req, res);
+  });
+
+  router.get("/:project_id/vault", authenticateMiddleware, (req, res) => {
+    ProjectController.get_vault_entries_by_project_id(req, res);
+  });
+
+  router.get(
+    "/:project_id/vault/:vault_id/history",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.get_vault_history(req, res);
+    }
+  );
+
+  // Route per export del vault
+  router.get(
+    "/:project_id/vault/export",
+    authenticateMiddleware,
+    (req, res) => {
+      ProjectController.export_vault(req, res);
+    }
+  );
 
   return router; // Ritorna il router per consentire l'utilizzo da parte dell'app principale
 };

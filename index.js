@@ -16,6 +16,7 @@ BigInt.prototype.toJSON = function () {
 // Importa le route
 const AuthenticationRoutes = require("./routes/authentication/Authentication");
 const ProjectRoutes = require("./routes/project/Project");
+const GitHubRoutes = require("./routes/github/GitHub");
 
 const credentials = {
   key: fs.readFileSync("SSL/privateKey.key"),
@@ -24,6 +25,8 @@ const credentials = {
 
 const app = express();
 app.use(express.static("public"));
+// Servi anche le immagini profilo dalla cartella uploads
+app.use("/uploads", express.static("uploads"));
 const PREFIX = "/API/v1";
 const PORT = 3000; // Porta standard per HTTPS
 
@@ -74,6 +77,7 @@ if (process.env.ENVIRONMENT === "development") {
 // Definisci le route principali
 app.use(PREFIX + "/authentication", AuthenticationRoutes());
 app.use(PREFIX + "/project", ProjectRoutes());
+app.use(PREFIX + "/github", GitHubRoutes());
 
 // Avvia il server HTTPS sulla porta 443
 (async () => {
