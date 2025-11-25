@@ -23,6 +23,10 @@ const projectUPDATE = () => {
     ProjectController.update_feature_flag(req, res);
   });
 
+  router.put("/update-targeting-rule", authenticateMiddleware, (req, res) => {
+    ProjectController.update_targeting_rule(req, res);
+  });
+
   router.put(
     "/update-feature-flag-group",
     authenticateMiddleware,

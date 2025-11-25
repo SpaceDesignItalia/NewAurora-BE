@@ -698,6 +698,7 @@ class ProjectModel {
                   type: targeting.type,
                   operator: targeting.operator,
                   value: targeting.value,
+                  enabled: targeting.enabled,
                   updated_at: new Date(),
                 },
               });
@@ -708,6 +709,7 @@ class ProjectModel {
                 type: targeting.type,
                 operator: targeting.operator,
                 value: targeting.value,
+                enabled: targeting.enabled,
                 feature_flag_id: updatedFeatureFlag.feature_flag_id,
                 created_by_id: BigInt(created_by_id),
               };
@@ -756,6 +758,21 @@ class ProjectModel {
       });
 
       return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async update_targeting_rule(target_id, value) {
+    try {
+      await prisma.feature_Flag_Target.update({
+        where: {
+          target_id: parseInt(target_id),
+        },
+        data: {
+          enabled: value,
+        },
+      });
     } catch (error) {
       throw error;
     }

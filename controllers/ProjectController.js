@@ -387,6 +387,20 @@ class ProjectController {
     }
   }
 
+  static async update_targeting_rule(req, res) {
+    try {
+      const target_id = req.body.target_id;
+      const value = req.body.value;
+      await Project.update_targeting_rule(target_id, value);
+      res.status(200).json({
+        message: "Targeting rule aggiornata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento della targeting rule:", error);
+      res.status(500).send("Aggiornamento della targeting rule fallita");
+    }
+  }
+
   static async update_feature_flag_group(req, res) {
     try {
       const feature_flag_group_data = req.body.feature_flag_group_data;
