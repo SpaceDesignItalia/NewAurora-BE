@@ -1,7 +1,7 @@
 // projectUPDATE.js
 const express = require("express");
 const router = express.Router();
-const ProjectController = require("../../Controllers/ProjectController");
+const ProjectController = require("../../controllers/ProjectController");
 const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
 
 const projectUPDATE = () => {

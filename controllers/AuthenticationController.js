@@ -1,5 +1,5 @@
 // controller/AuthenticationController.js
-const Authentication = require("../Models/AuthenticationModel");
+const Authentication = require("../models/AuthenticationModel");
 const EmailService = require("../middlewares/EmailService/EmailService");
 const axios = require("axios");
 const crypto = require("crypto");

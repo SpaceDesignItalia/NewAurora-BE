@@ -1,4 +1,4 @@
-const { PrismaClient } = require("../generated/prisma");
+const { PrismaClient } = require("@prisma/client");
 const VaultEncryptionService = require("../services/VaultEncryptionService");
 
 const prisma = new PrismaClient();

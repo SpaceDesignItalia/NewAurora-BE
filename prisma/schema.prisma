@@ -1,7 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
+
 
 datasource db {
   provider = "postgresql"
@@ -27,6 +28,7 @@ model User {
   sprints            Sprint[]
   password_resets    Password_Reset[]
   task_statuses      Task_Status[]
+  
 
   @@index([oauth_provider, oauth_id], name: "idx_users_oauth")
   @@index([email, oauth_provider], name: "idx_users_email_oauth")
@@ -34,6 +36,8 @@ model User {
   feature_flag_groups Feature_Flag_Group[]
   feature_flag_targets Feature_Flag_Target[]
   feature_flag_rules Feature_Flag_Rule[]
+  teams Team[]
+  team_members Team_Member[]
 }
 
 model Password_Reset {
@@ -76,6 +80,7 @@ model Project {
   feature_flags     Feature_Flag[]
   feature_flag_groups Feature_Flag_Group[]
   vault_entries     Vault[]
+  teams Team[]
 }
 
 model Vault {
@@ -230,4 +235,27 @@ model Feature_Flag_Rule {
   created_by_id BigInt
   created_by User @relation(fields: [created_by_id], references: [user_id], onDelete: Cascade)
   feature_flag Feature_Flag @relation(fields: [feature_flag_id], references: [feature_flag_id], onDelete: Cascade)
+}
+
+model Team {
+  team_id BigInt    @id @default(autoincrement())
+  name String
+  description String?
+  project_id BigInt
+  team_members Team_Member[]
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  created_by_id BigInt
+  created_by User @relation(fields: [created_by_id], references: [user_id], onDelete: Cascade)
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+}
+
+model Team_Member {
+  team_member_id BigInt    @id @default(autoincrement())
+  team_id BigInt
+  user_id BigInt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  team Team @relation(fields: [team_id], references: [team_id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 }

@@ -1,5 +1,5 @@
 // Script per aggiungere il campo profile_image_url al database
-const { PrismaClient } = require("../generated/prisma");
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function addProfileImageUrl() {

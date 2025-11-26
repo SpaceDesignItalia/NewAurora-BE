@@ -1,7 +1,7 @@
 // projectPOST.js
 const express = require("express");
 const router = express.Router();
-const ProjectController = require("../../Controllers/ProjectController");
+const ProjectController = require("../../controllers/ProjectController");
 const authenticateMiddleware = require("../../middlewares/Authentication/Authmiddleware");
 
 const projectPOST = () => {
@@ -38,7 +38,6 @@ const projectPOST = () => {
       ProjectController.change_feature_flag_state(req, res);
     }
   );
-
 
   router.post("/create-task-status", authenticateMiddleware, (req, res) => {
     ProjectController.create_task_status(req, res);

@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const { PrismaClient } = require("../generated/prisma");
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
@@ -261,11 +261,11 @@ class AuthenticationModel {
         const updateData = {
           updated_at: new Date(),
         };
-        
+
         if (accessToken) {
           updateData.oauth_access_token = accessToken;
         }
-        
+
         // Aggiorna avatar solo se non esiste già o se è stato fornito un nuovo avatar
         if (profileImageUrl && !user.profile_image_url) {
           updateData.profile_image_url = profileImageUrl;
@@ -273,8 +273,9 @@ class AuthenticationModel {
           // Opzionale: aggiorna anche se esiste già (per aggiornare avatar OAuth)
           updateData.profile_image_url = profileImageUrl;
         }
-        
-        if (Object.keys(updateData).length > 1) { // Più di solo updated_at
+
+        if (Object.keys(updateData).length > 1) {
+          // Più di solo updated_at
           user = await prisma.user.update({
             where: {
               user_id: user.user_id,
@@ -301,12 +302,12 @@ class AuthenticationModel {
           is_email_verified: isEmailVerified || existingUser.is_email_verified,
           updated_at: new Date(),
         };
-        
+
         // Aggiorna avatar solo se non esiste già
         if (profileImageUrl && !existingUser.profile_image_url) {
           updateData.profile_image_url = profileImageUrl;
         }
-        
+
         user = await prisma.user.update({
           where: {
             user_id: existingUser.user_id,
@@ -333,7 +334,10 @@ class AuthenticationModel {
 
       return user;
     } catch (error) {
-      console.error("AuthenticationModel.findOrCreateOAuthUser - Errore:", error);
+      console.error(
+        "AuthenticationModel.findOrCreateOAuthUser - Errore:",
+        error
+      );
       throw error;
     }
   }
@@ -385,8 +389,11 @@ class AuthenticationModel {
    */
   static async update_profile(userId, profileData) {
     try {
-      console.log("AuthenticationModel.update_profile - Input:", { userId, profileData });
-      
+      console.log("AuthenticationModel.update_profile - Input:", {
+        userId,
+        profileData,
+      });
+
       // Costruisci l'oggetto data solo con i campi definiti
       const updateData = {};
       if (profileData.name !== undefined) {
@@ -399,7 +406,10 @@ class AuthenticationModel {
         updateData.email = profileData.email;
       }
 
-      console.log("AuthenticationModel.update_profile - updateData:", updateData);
+      console.log(
+        "AuthenticationModel.update_profile - updateData:",
+        updateData
+      );
 
       // Se non ci sono dati da aggiornare, restituisci l'utente corrente
       if (Object.keys(updateData).length === 0) {
